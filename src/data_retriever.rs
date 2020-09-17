@@ -14,6 +14,7 @@ pub struct DataRetriever {
 /// Retrieves members steam_id of provided guild via https://api.stratz.com/graphql post endpoint.
 /// Request was designed by reverse engineering https://stratz.com/guilds/%guild_id%/members website.
 async fn get_guild_members_ids(guild_id : &GuildId) -> reqwest::Result<Vec<PlayerId>> {
+    println!("Fetching members of guild: {}", guild_id);
     let req_body = format!(r#"{{
         "operationName":"GuildMembers",
         "variables":{{"id":{},"byId":true,"tag":"","byTag":false}},"query":"query GuildMembers($id: Int!, $byId: Boolean!, $tag: String!, $byTag: Boolean!) {{\n  guild(id: $id) @include(if: $byId) {{\n    ...GuildMembers\n  }}\n  stratz @include(if: $byTag) {{\n    search(request: {{query: $tag, searchType: [GUILDS]}}) {{\n      guild {{\n        ...GuildMembers\n      }}\n    }}\n  }}\n}}\n\nfragment GuildMembers on GuildType {{\n  members {{\n    steamAccount {{\n      id}}\n  }}\n}}\n"}}"#,
@@ -34,7 +35,8 @@ async fn get_guild_members_ids(guild_id : &GuildId) -> reqwest::Result<Vec<Playe
 /// Get match_ids of all games of a specified player. 
 /// Uses https://api.opendota.com/api/players/{player_id}/matches endpoint.
 async fn get_player_match_ids(player_id : &PlayerId) -> reqwest::Result<Vec<MatchId>> {
-    let response = reqwest::get(&format!("https://api.opendota.com/api/players/{}/matches?limit=10", player_id).to_string())
+    println!("Fetching player matches: {}", player_id);
+    let response = reqwest::get(&format!("https://api.opendota.com/api/players/{}/matches", player_id).to_string())
         .await?
         .text()
         .await?;
@@ -45,15 +47,33 @@ async fn get_player_match_ids(player_id : &PlayerId) -> reqwest::Result<Vec<Matc
 
 /// Get single match data containing parsed match information.
 /// Uses https://api.opendota.com/api/matches/{match_id} endpoint.
-async fn get_match_info(match_id : &MatchId) -> reqwest::Result<serde_json::Value> {
+async fn get_match_info(match_id : &MatchId) -> reqwest::Result<Option<serde_json::Value>> {
+    println!("Fetching match info: {}", match_id);
     let response = reqwest::get(&format!("https://api.opendota.com/api/matches/{}", match_id).to_string())
         .await?
         .text()
         .await?;
-    Ok(serde_json::from_str(&response).unwrap())
+    let mut res : serde_json::Value = match serde_json::from_str(&response) {
+        Ok(v) => v,
+        Err(e) => {
+            println!("Error {} occured during parsing of {}. Omitting match.", e, response);
+            return Ok(None)
+        }
+    };
+    if res["match_id"].is_null() {
+        println!("Match_id is missing, assiging: {}", match_id);
+        let obj = res.as_object_mut().unwrap();
+        obj.insert("match_id".into(), serde_json::Value::Number(match_id.parse::<u64>().unwrap().into()));
+        return Ok(Some(serde_json::json!(obj)))
+    }
+    Ok(Some(res))
 }
 
 impl DataRetriever {
+    pub fn new() -> DataRetriever {
+        DataRetriever{cache : InputCache::new()}
+    }
+
     pub async fn get_guild_players_matches_info(&self, guild_id : &GuildId) -> reqwest::Result<Vec<serde_json::Value>> {
         let members = get_guild_members_ids(guild_id).await?;
         println!("Got {} members of guild: {}", members.len(), &guild_id);
@@ -68,7 +88,15 @@ impl DataRetriever {
         println!("Cached: {}. Not-cached: {}.", cached_infos.len(), not_cached_ids.len());
         let mut not_cached_info = vec![];
         for not_cached_id in not_cached_ids {
-            not_cached_info.push(get_match_info(not_cached_id).await?);
+            let new_info = match get_match_info(&not_cached_id).await? {
+                Some(info) => info,
+                None => continue,
+            };
+            not_cached_info.push(new_info);
+            if not_cached_info.len() > 100 {
+                self.cache.add_info(guild_id, &not_cached_info);
+                not_cached_info.clear();
+            }
         };
         self.cache.add_info(guild_id, &not_cached_info);
         cached_infos.extend(not_cached_info.into_iter());
