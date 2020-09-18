@@ -6,7 +6,7 @@ pub fn read_lines(filename : &String) -> std::io::Result<Vec<String>> {
     Ok(BufReader::new(file).lines().map(|l| l.unwrap()).collect())
 }
 
-pub fn write_lines(filename : &String, lines : &Vec<String>) -> std::io::Result<()> {
+pub fn append_lines(filename : &String, lines : &Vec<String>) -> std::io::Result<()> {
     let mut open_options = OpenOptions::new();
     open_options.append(true);
     let mut file = open_options.open(filename).or_else(|_| File::create(filename))?;
@@ -14,5 +14,10 @@ pub fn write_lines(filename : &String, lines : &Vec<String>) -> std::io::Result<
         let output = [line, "\n"].concat();
         file.write_all(output.as_bytes()).unwrap();
     }
+    Ok(())
+}
+
+pub fn clear_file(filename : &String) -> std::io::Result<()> {
+    OpenOptions::new().write(true).truncate(true).open(filename)?;
     Ok(())
 }
