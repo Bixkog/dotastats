@@ -1,5 +1,5 @@
-use std::option::NoneError;
 use serde::{Deserialize, Serialize};
+use std::option::NoneError;
 
 /// Struct representing players stats at some match.
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -95,11 +95,13 @@ pub struct Match {
     players_stats: Vec<PlayerStats>,
 }
 
-pub type PlayerSetup = String; //(/*personaname:*/ String, /*lane:*/ u64);
+pub type PlayerName = String;
+pub type PlayerLane = (/*personaname:*/ String, /*lane:*/ u64);
 
 #[derive(Debug)]
 pub enum StatsError {
-    MissingField(NoneError)
+    MissingField(NoneError),
+    NoTargetPlayer(),
 }
 
 impl From<NoneError> for StatsError {
@@ -111,19 +113,43 @@ impl From<NoneError> for StatsError {
 pub type StatsResult<T> = std::result::Result<T, StatsError>;
 
 impl Match {
-    pub fn new(match_stats : MatchStats, players_stats : Vec<PlayerStats>) -> Match {
-        Match{match_stats, players_stats}
+    pub fn new(match_stats: MatchStats, players_stats: Vec<PlayerStats>) -> Match {
+        Match {
+            match_stats,
+            players_stats,
+        }
     }
 
     pub fn is_won(&self) -> StatsResult<bool> {
         Ok(self.players_stats[0].win? == 1)
     }
 
-    pub fn get_team_setup(&self) -> StatsResult<Vec<PlayerSetup>> {
-        let mut team_setup = vec![];
+    pub fn get_team(&self) -> StatsResult<Vec<PlayerName>> {
+        let mut team = vec![];
         for p in self.players_stats.iter() {
-            team_setup.push(p.personaname.clone()?);//((p.personaname.clone()?, p.lane?));    
-        };
-        Ok(team_setup)
+            team.push(p.personaname.clone()?); //((p.personaname.clone()?, p.lane?));
+        }
+        Ok(team)
+    }
+
+    pub fn get_player_hero(&self, player_name: &PlayerName) -> StatsResult<u64> {
+        for p in self.players_stats.iter() {
+            if p.personaname.as_ref()? == player_name {
+                return Ok(p.hero_id?);
+            }
+        }
+        Err(StatsError::NoTargetPlayer())
+    }
+
+    pub fn get_team_laning(&self) -> StatsResult<Vec<PlayerLane>> {
+        let mut team = vec![];
+        for p in self.players_stats.iter() {
+            team.push((p.personaname.clone()?, p.lane?));
+        }
+        Ok(team)
+    }
+
+    pub fn get_team_size(&self) -> StatsResult<usize> {
+        Ok(self.players_stats.len())
     }
 }

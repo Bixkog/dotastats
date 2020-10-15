@@ -1,1 +1,5 @@
 /target
+*_ids
+*_info
+*_req
+heroes.txt
