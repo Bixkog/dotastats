@@ -55,9 +55,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             lane, synergy, wr, p1_wr, p2_wr
         );
     }
-    let roles_score = analyzers::roles::best_roles(&matches);
+    let mut roles_score = analyzers::roles::roles_wr(&matches);
+    println!("BEST ROLES");
     for (roles, score) in roles_score.iter().take(100) {
-        println!("{} -> {:?}", roles, score)
+        if score.total() < 30 {continue}
+        println!("{:?} -> {:?}", roles, score)
+    }
+    roles_score.reverse();
+    println!("WORST ROLES");
+    for (roles, score) in roles_score.iter().take(100) {
+        println!("{:?} -> {:?}", roles, score)
+    }
+    analyzers::roles::plot(&roles_score).unwrap();
+    let mut roles_synergies = analyzers::roles::roles_synergies(&matches);
+    println!("BEST ROLES SYNERGIES");
+    for (roles, (synergy, games)) in roles_synergies.iter().take(100) {
+        println!("{:?} -> Synergy: {} Games: {} ", roles, synergy, games);
+    }
+    roles_synergies.reverse();
+    println!("WORST ROLES SYNERGIES");
+    for (roles, (synergy, games)) in roles_synergies.iter().take(100) {
+        println!("{:?} -> Synergy: {} Games: {} ", roles, synergy, games);
     }
     Ok(())
 }
