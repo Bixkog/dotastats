@@ -1,13 +1,9 @@
 #![feature(try_trait)]
 mod analyzers;
 mod constants;
-mod data_retriever;
-mod extractor;
+mod data_retrieval;
 mod match_stats;
-mod match_storage;
-mod match_updater;
-mod opendota_client;
-mod parse_requester;
+mod storage;
 mod types;
 mod utils;
 use clap::Clap;
@@ -24,17 +20,7 @@ struct Opts {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let opts: Opts = Opts::parse();
-    if opts.update {
-        let match_updater = match_updater::MatchUpdater::new();
-        match_updater.try_update(&opts.guild_id).await?;
-    }
-    let data_retriever = data_retriever::DataRetriever::new();
-    let guild_raw_data = data_retriever.get_guild_raw_data(&opts.guild_id).await?;
-    let parse_requester = parse_requester::ParseRequester::new();
-    parse_requester
-        .request_parsing(&guild_raw_data.guild_id, &guild_raw_data.members_matches)
-        .await?;
-    let matches = extractor::extract_stats(guild_raw_data).unwrap();
+    let matches = data_retrieval::retrieval_agent::process_guild_matches_retrieval(opts.guild_id, opts.update).await?;
     let team_setup_rank = analyzers::team::best_teams(&matches);
     for (team_setup, winratio) in team_setup_rank.iter() {
         if winratio.wins + winratio.looses < 30 {

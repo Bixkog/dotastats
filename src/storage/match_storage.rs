@@ -1,4 +1,4 @@
-use crate::parse_requester::ParseRequestState;
+use crate::data_retrieval::parse_requester::ParseRequestState;
 use crate::types::{GuildId, MatchId};
 use crate::utils;
 use std::collections::HashSet;

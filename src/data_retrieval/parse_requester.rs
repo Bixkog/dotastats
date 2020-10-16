@@ -1,4 +1,4 @@
-use crate::match_storage::MatchStorage;
+use crate::storage::match_storage::MatchStorage;
 use crate::types::{GuildId, MatchId};
 use crate::utils;
 use reqwest::ClientBuilder;

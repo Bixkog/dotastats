@@ -1,4 +1,4 @@
-use crate::data_retriever::GuildRawData;
+use crate::data_retrieval::data_retriever::GuildRawData;
 use crate::match_stats::{Match, MatchStats, PlayerStats};
 
 use serde::de::Error;
