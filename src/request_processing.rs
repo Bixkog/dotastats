@@ -12,8 +12,8 @@ fn process_roles_wr(guild_id: &String, data: &Vec<Match>) -> Result<(), Box<dyn 
     Ok(())
 }
 
-pub async fn process_guild_request(guild_id: String, update: bool) -> Result<(), Box<dyn std::error::Error>> {
-    let matches = process_guild_matches_retrieval(&guild_id, update).await?;
+pub async fn process_guild_request(guild_id: &String, update: bool) -> Result<(), Box<dyn std::error::Error>> {
+    let matches = process_guild_matches_retrieval(guild_id, update).await?;
     process_roles_wr(&guild_id, &matches)?;
     Ok(())
 }

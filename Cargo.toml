@@ -20,3 +20,4 @@ clap = "3.0.0-beta.2"
 plotters = "^0.3.0"
 chrono = "0.4"
 config = "0.9"
+rocket = { git = "https://github.com/SergioBenitez/Rocket.git"}
