@@ -1,14 +1,17 @@
 use super::analyzers_utils::*;
-use crate::constants::{Constants, Hero};
+use crate::heroes_info::{HeroesInfo, Hero};
 use crate::match_stats::Match;
 use crate::match_stats::PlayerName;
 use std::collections::HashMap;
 use plotters::prelude::*;
 pub type Roles = Vec<(PlayerName, String)>;
+use crate::CONFIG;
+
+pub type RolesWr = Vec<(Roles, WinRatio)>;
 
 /// Finds heroes played by players.
 fn get_heroes(
-    constants: &Constants,
+    heroes_info: &HeroesInfo,
     match_: &Match,
     mut team: Vec<String>,
 ) -> Vec<(PlayerName, Hero)> {
@@ -16,7 +19,7 @@ fn get_heroes(
     team.sort();
     for player in team {
         let player_hero_id = skip_fail!(match_.get_player_hero(&player));
-        let hero = constants.get_hero(player_hero_id);
+        let hero = heroes_info.get_hero(player_hero_id);
         team_setup.push((player, hero));
     }
     team_setup
@@ -43,13 +46,13 @@ fn get_role_subsets(team_setup: Vec<(PlayerName, Hero)>) -> Vec<Roles> {
     role_subsets
 }
 
-pub fn roles_wr(data: &Vec<Match>) -> Vec<(Roles, WinRatio)> {
+pub fn get_roles_wr(matches: &Vec<Match>) -> RolesWr {
     // TODO: init earlier and pass
-    let constants = Constants::init("heroes.txt".to_string());
+    let heroes_info = HeroesInfo::init("heroes.txt".to_string());
     let mut roles_score: HashMap<Roles, WinRatio> = HashMap::new();
-    for match_ in data {
+    for match_ in matches {
         let team = skip_fail!(match_.get_team());
-        let team_setup = get_heroes(&constants, match_, team);
+        let team_setup = get_heroes(&heroes_info, match_, team);
         let role_subsets = get_role_subsets(team_setup);
         let is_won = skip_fail!(match_.is_won());
         for subset in role_subsets {
@@ -57,7 +60,7 @@ pub fn roles_wr(data: &Vec<Match>) -> Vec<(Roles, WinRatio)> {
             roles_score.entry(subset).or_default().add_score(is_won);
         }
     }
-    let mut result: Vec<(Roles, WinRatio)> = roles_score.into_iter().collect();
+    let mut result: RolesWr = roles_score.into_iter().collect();
     result = result
         .into_iter()
         .collect();
@@ -66,8 +69,8 @@ pub fn roles_wr(data: &Vec<Match>) -> Vec<(Roles, WinRatio)> {
     result
 }
 
-pub fn roles_synergies(data: &Vec<Match>) -> Vec<(Roles, (f64, u32))> {
-    let roles_wr_res: Vec<(Roles, WinRatio)> = roles_wr(data).into_iter().filter(|(_, wr)| wr.total() > 30).collect();
+pub fn roles_synergies(matches: &Vec<Match>) -> Vec<(Roles, (f64, u32))> {
+    let roles_wr_res: RolesWr = get_roles_wr(matches).into_iter().filter(|(_, wr)| wr.total() > 30).collect();
     let single_wr = roles_wr_res.iter().filter(|(r, _)| r.len() == 1).fold(HashMap::<(String, String), WinRatio>::new(), 
         |mut s, (roles, wr)| {
             s.insert(roles[0].clone(), wr.clone());
@@ -87,6 +90,15 @@ pub fn roles_synergies(data: &Vec<Match>) -> Vec<(Roles, (f64, u32))> {
     }
     result.sort_by(|(_, a), (_, b)| b.partial_cmp(a).unwrap());
     result
+}
+
+pub fn compress_roles_wr(roles_wr: RolesWr) -> RolesWr {
+    let relevant_total_games = CONFIG.get_int("min_roles_wr_games").unwrap() as u32;
+    roles_wr.into_iter().filter(|(_, wr)| wr.total() >= relevant_total_games).collect()
+}
+
+pub fn roles_wr_to_json(result: RolesWr) -> serde_json::Value {
+    serde_json::to_value(result).unwrap()
 }
 
 pub fn plot(res_roles_wr: &Vec<(Roles, WinRatio)>) -> Result<(), Box<dyn std::error::Error>> {

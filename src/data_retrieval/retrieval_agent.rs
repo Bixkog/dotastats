@@ -4,7 +4,7 @@ use crate::match_stats::Match;
 use crate::data_retrieval::match_updater::MatchUpdater;
 use crate::data_retrieval::extractor::extract_stats;
 
-pub async fn process_guild_matches_retrieval(guild_id: String, update: bool) -> reqwest::Result<Vec<Match>> {
+pub async fn process_guild_matches_retrieval(guild_id: &String, update: bool) -> reqwest::Result<Vec<Match>> {
     if update {
         let match_updater = MatchUpdater::new();
         match_updater.try_update(&guild_id).await?;

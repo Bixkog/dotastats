@@ -8,11 +8,11 @@ pub struct Hero {
     pub roles: Vec<String>,
 }
 
-pub struct Constants {
+pub struct HeroesInfo {
     heroes: HashMap<u64, Hero>,
 }
 
-impl Constants {
+impl HeroesInfo {
     pub fn init(heroes_filename: String) -> Self {
         let raw_heroes = serde_json::from_str::<serde_json::Value>(
             read_to_string(heroes_filename)
@@ -23,7 +23,7 @@ impl Constants {
         let heroes_constants = raw_heroes
             .as_object()
             .expect("Heroes constants are not object.");
-        let mut constants = Constants {
+        let mut heroes_info = HeroesInfo {
             heroes: HashMap::new(),
         };
         for (id, hero) in heroes_constants {
@@ -38,9 +38,9 @@ impl Constants {
                     .map(|v| v.as_str().unwrap().to_string())
                     .collect(),
             };
-            constants.heroes.insert(id_int, hero_parsed);
+            heroes_info.heroes.insert(id_int, hero_parsed);
         }
-        constants
+        heroes_info
     }
 
     pub fn get_hero(&self, hero_id: u64) -> Hero {

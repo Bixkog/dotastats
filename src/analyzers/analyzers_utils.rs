@@ -1,4 +1,5 @@
 use std::cmp::Ordering;
+use serde::{Deserialize, Serialize};
 
 #[macro_export]
 macro_rules! skip_fail {
@@ -10,7 +11,7 @@ macro_rules! skip_fail {
     };
 }
 
-#[derive(Debug, Default, Eq, Clone)]
+#[derive(Debug, Default, Eq, Clone, Serialize, Deserialize)]
 pub struct WinRatio {
     pub wins: u32,
     pub looses: u32,
