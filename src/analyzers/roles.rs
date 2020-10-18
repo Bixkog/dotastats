@@ -48,8 +48,8 @@ fn get_role_subsets(team_setup: Vec<(PlayerName, Hero)>) -> Vec<Roles> {
 }
 
 pub fn get_roles_wr(matches: &Vec<Match>) -> RolesWr {
-    // TODO: init earlier and pass
-    let heroes_info = HeroesInfo::init("heroes.txt".to_string());
+    let heroes_info_filename = CONFIG.get_str("heroes_info_filename").unwrap().to_string();
+    let heroes_info = HeroesInfo::init(heroes_info_filename);
     let mut roles_score: HashMap<Roles, WinRatio> = HashMap::new();
     for match_ in matches {
         let team = skip_fail!(match_.get_team());

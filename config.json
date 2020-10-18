@@ -1,4 +1,5 @@
 {
     "min_roles_wr_games": 30,
-    "update_every_n_days": 5
+    "update_every_n_days": 5,
+    "heroes_info_filename": "heroes.json"
 }
