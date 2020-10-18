@@ -26,7 +26,22 @@ async fn guild(guild_id: String) -> Option<String> {
     }
 }
 
-pub async fn start() -> Result<(), Box<dyn std::error::Error>>  {
-    rocket::ignite().mount("/dotastats", routes![guild]).launch().await?;
+#[get("/start")]
+async fn start() -> &'static str {
+    "OK!"
+}
+
+#[get("/stop")]
+async fn stop() -> &'static str {
+    "OK!"
+}
+
+#[get("/health")]
+async fn health() -> &'static str {
+    "OK!"
+}
+
+pub async fn run() -> Result<(), Box<dyn std::error::Error>>  {
+    rocket::ignite().mount("/dotastats", routes![guild, start, stop, health]).launch().await?;
     Ok(())
 }

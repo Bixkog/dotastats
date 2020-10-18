@@ -38,7 +38,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>  {
             std::thread::sleep(Duration::from_secs(3600));
         }
     });
-    server::start().await?;
+    server::run().await?;
     updater.await?;
     Ok(())
 }
