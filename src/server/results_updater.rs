@@ -1,7 +1,8 @@
 use std::fs::{read_dir};
 use regex::Regex;
+use tokio::task::JoinHandle;
 use std::time::SystemTime;
-use crate::request_processing;
+use crate::server::data_processing;
 use crate::CONFIG;
 
 lazy_static! {
@@ -24,11 +25,11 @@ fn update_delay_elapsed(dirname: &str) -> std::io::Result<bool> {
 
 async fn update_guild_data(dirname: &str) -> Result<(), Box<dyn std::error::Error>> {
     let guild_id = RE.captures(dirname).unwrap().get(0).unwrap().as_str().to_string();
-    request_processing::process_guild_request(&guild_id, true).await?;
+    data_processing::process_guild_data(&guild_id, true).await?;
     Ok(())
 }
 
-pub async fn update_results() -> Result<(), Box<dyn std::error::Error>> {
+async fn update_results() -> Result<(), Box<dyn std::error::Error>> {
     println!("Updating results!.");
     for file in read_dir(".")? {
         let file = file?;
@@ -42,6 +43,20 @@ pub async fn update_results() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
     println!("Update finished!.");
-
     Ok(())
+}
+
+pub async fn spawn_worker() -> JoinHandle<()> {
+    tokio::spawn(async {
+        loop {
+            match update_results().await {
+                Ok(()) => (),
+                Err(e) => {
+                    println!("Error {} occured during update. Retry in 1 hour.", e);
+                    ()
+                }
+            };
+            tokio::time::delay_for(tokio::time::Duration::from_secs(3600)).await;
+        }
+    })
 }

@@ -3,9 +3,9 @@ use crate::heroes_info::{Hero, HeroesInfo};
 use crate::match_stats::Match;
 use crate::match_stats::PlayerName;
 use std::collections::HashMap;
-pub type Roles = Vec<(PlayerName, String)>;
 use crate::CONFIG;
 
+pub type Roles = Vec<(PlayerName, String)>;
 pub type RolesWr = Vec<(Roles, WinRatio)>;
 
 /// Finds heroes played by players.

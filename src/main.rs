@@ -7,11 +7,9 @@ mod match_stats;
 mod storage;
 mod types;
 mod utils;
-mod request_processing;
 mod server;
-mod results_updater;
 use config::{Config, File};
-use std::time::Duration;
+
 #[macro_use]
 extern crate lazy_static;
 #[macro_use] 
@@ -26,19 +24,6 @@ lazy_static! {
 }
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>>  {
-    let updater = tokio::spawn(async {
-        loop {
-            match results_updater::update_results().await {
-                Ok(()) => (),
-                Err(e) => {
-                    println!("Error {} occured during update. Retry in 1 hour.", e);
-                    ()
-                }
-            };
-            std::thread::sleep(Duration::from_secs(3600));
-        }
-    });
-    server::run().await?;
-    updater.await?;
+    server::server::run().await?;
     Ok(())
 }
