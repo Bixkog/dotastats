@@ -1,16 +1,19 @@
-use tokio::sync::Mutex;
-use crate::data_retrieval::parse_requester::ParseRequester;
 use crate::data_retrieval::data_retriever::DataRetriever;
-use crate::match_stats::Match;
-use crate::data_retrieval::match_updater::MatchUpdater;
 use crate::data_retrieval::extractor::extract_stats;
+use crate::data_retrieval::match_updater::MatchUpdater;
+use crate::data_retrieval::parse_requester::ParseRequester;
+use crate::match_stats::Match;
 use lazy_static;
+use tokio::sync::Mutex;
 
-lazy_static!{
+lazy_static! {
     static ref RETRIEVAL_MUTEX: Mutex<u32> = Mutex::new(0);
 }
 
-pub async fn process_guild_matches_retrieval(guild_id: &String, update: bool) -> reqwest::Result<Vec<Match>> {
+pub async fn process_guild_matches_retrieval(
+    guild_id: &String,
+    update: bool,
+) -> reqwest::Result<Vec<Match>> {
     let _lock = RETRIEVAL_MUTEX.lock().await;
     if update {
         let match_updater = MatchUpdater::new();

@@ -1,6 +1,6 @@
-use crate::storage::match_storage::MatchStorage;
 use crate::data_retrieval::opendota_client::OpenDotaClient;
 use crate::data_retrieval::parse_requester::{ParseRequestState, ParseState};
+use crate::storage::match_storage::MatchStorage;
 use crate::types::{GuildId, MatchId};
 use crate::utils::is_match_parsed;
 use std::collections::HashMap;

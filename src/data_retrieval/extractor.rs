@@ -27,7 +27,6 @@ fn extract_match_stats(
             players_stats.push(player_stats);
         }
     }
-    
     let match_stats: MatchStats = serde_json::from_value(match_json)?;
     Ok(Match::new(match_stats, players_stats))
 }
@@ -55,9 +54,7 @@ pub fn extract_stats(guild_raw_data: GuildRawData) -> Result<Vec<Match>> {
                 parsed += 1;
                 m
             }
-            Err(_) => {
-                continue
-            }
+            Err(_) => continue,
         };
         parsed_team_size[match_stats.get_team_size().unwrap() - 1] += 1;
         matches_stats.push(match_stats);

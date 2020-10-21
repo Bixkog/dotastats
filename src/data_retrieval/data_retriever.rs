@@ -1,5 +1,5 @@
-use crate::storage::match_storage::MatchStorage;
 use crate::data_retrieval::opendota_client::OpenDotaClient;
+use crate::storage::match_storage::MatchStorage;
 use crate::types::{GuildId, MatchId};
 
 use reqwest;

@@ -2,8 +2,8 @@ use super::analyzers_utils::*;
 use crate::heroes_info::{Hero, HeroesInfo};
 use crate::match_stats::Match;
 use crate::match_stats::PlayerName;
-use std::collections::HashMap;
 use crate::CONFIG;
+use std::collections::HashMap;
 
 pub type Roles = Vec<(PlayerName, String)>;
 pub type RolesWr = Vec<(Roles, WinRatio)>;
@@ -70,12 +70,9 @@ pub fn get_roles_wr(matches: &Vec<Match>) -> RolesWr {
     result
 }
 
-pub fn roles_synergies(matches: &Vec<Match>) -> Vec<(Roles, (f64, u32))> {
-    let roles_wr_res: RolesWr = get_roles_wr(matches)
-        .into_iter()
-        .filter(|(_, wr)| wr.total() > 30)
-        .collect();
-    let single_wr = roles_wr_res.iter().filter(|(r, _)| r.len() == 1).fold(
+pub fn roles_synergies(roles_wr: &RolesWr) -> Vec<(Roles, (f64, u32))> {
+    let roles_wr = roles_wr.clone();
+    let single_wr = roles_wr.iter().filter(|(r, _)| r.len() == 1).fold(
         HashMap::<(String, String), WinRatio>::new(),
         |mut s, (roles, wr)| {
             s.insert(roles[0].clone(), wr.clone());
@@ -83,7 +80,7 @@ pub fn roles_synergies(matches: &Vec<Match>) -> Vec<(Roles, (f64, u32))> {
         },
     );
     let mut result = vec![];
-    for (roles, team_wr) in roles_wr_res {
+    for (roles, team_wr) in roles_wr {
         if roles.len() <= 1 {
             continue;
         }

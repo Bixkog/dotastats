@@ -1,12 +1,12 @@
+use crate::server::data_processing::{self, DPQ};
+use crate::server::health_routes::{health, start, stop};
+use crate::server::results_updater;
+use crate::storage::result_storage;
 use rocket;
 use rocket::response::content;
 use rocket::State;
 use std::{collections::VecDeque, sync::Arc};
 use tokio::sync::RwLock;
-use crate::server::data_processing::{self, DPQ};
-use crate::storage::result_storage;
-use crate::server::results_updater;
-use crate::server::health_routes::{health, start, stop};
 
 #[get("/guild/roles_wr/<guild_id>")]
 async fn roles_wr_req(guild_id: String) -> Option<content::Json<String>> {
@@ -25,7 +25,10 @@ async fn process_guild<'a>(guild_id: String, data_processing_queue: State<'a, DP
         Ok(true) => return (),
         Ok(false) => (),
         Err(e) => {
-            println!("Error during checking if guild is processed: {}. Recomputing.", e);
+            println!(
+                "Error during checking if guild is processed: {}. Recomputing.",
+                e
+            );
             ()
         }
     }
@@ -38,15 +41,19 @@ async fn process_guild<'a>(guild_id: String, data_processing_queue: State<'a, DP
     }
 }
 
-pub async fn run() -> Result<(), Box<dyn std::error::Error>>  {
+pub async fn run() -> Result<(), Box<dyn std::error::Error>> {
     let data_processing_queue: DPQ = Arc::new(RwLock::new(VecDeque::new()));
     let data_processor = data_processing::spawn_worker(data_processing_queue.clone());
-    let updater = results_updater::spawn_worker();
+    let updater = results_updater::spawn_worker(data_processing_queue.clone());
     updater.await;
     data_processor.await;
     rocket::ignite()
-        .mount("/dotastats", routes![roles_wr_req, process_guild, start, stop, health])
+        .mount(
+            "/dotastats",
+            routes![roles_wr_req, process_guild, start, stop, health],
+        )
         .manage(data_processing_queue)
-        .launch().await?;
+        .launch()
+        .await?;
     Ok(())
 }

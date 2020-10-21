@@ -1,4 +1,4 @@
-pub mod server;
+mod data_processing;
 mod health_routes;
 mod results_updater;
-mod data_processing;
+pub mod server;
