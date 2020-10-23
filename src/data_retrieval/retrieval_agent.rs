@@ -7,7 +7,7 @@ use lazy_static;
 use tokio::sync::Mutex;
 
 lazy_static! {
-    static ref RETRIEVAL_MUTEX: Mutex<u32> = Mutex::new(0);
+    static ref RETRIEVAL_MUTEX: Mutex<()> = Mutex::new(());
 }
 
 pub async fn process_guild_matches_retrieval(

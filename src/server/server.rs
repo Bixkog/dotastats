@@ -19,6 +19,28 @@ async fn roles_wr_req(guild_id: String) -> Option<content::Json<String>> {
     }
 }
 
+#[get("/guild/roles_synergy/<guild_id>")]
+async fn roles_synergy_req(guild_id: String) -> Option<content::Json<String>> {
+    match result_storage::get_roles_synergy_results(&guild_id) {
+        Ok(payload) => Some(content::Json(payload)),
+        Err(e) => {
+            println!("Error during the reading of roles_synergy result: {}", e);
+            None
+        }
+    }
+}
+
+#[get("/guild/roles_records/<guild_id>")]
+async fn roles_records_req(guild_id: String) -> Option<content::Json<String>> {
+    match result_storage::get_roles_records_results(&guild_id) {
+        Ok(payload) => Some(content::Json(payload)),
+        Err(e) => {
+            println!("Error during the reading of roles_records result: {}", e);
+            None
+        }
+    }
+}
+
 #[post("/guild/process/<guild_id>")]
 async fn process_guild<'a>(guild_id: String, data_processing_queue: State<'a, DPQ>) -> () {
     match result_storage::is_guild_result_ready(&guild_id) {
@@ -50,7 +72,15 @@ pub async fn run() -> Result<(), Box<dyn std::error::Error>> {
     rocket::ignite()
         .mount(
             "/dotastats",
-            routes![roles_wr_req, process_guild, start, stop, health],
+            routes![
+                roles_wr_req,
+                roles_synergy_req,
+                roles_records_req,
+                process_guild,
+                start,
+                stop,
+                health
+            ],
         )
         .manage(data_processing_queue)
         .launch()

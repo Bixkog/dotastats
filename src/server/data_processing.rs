@@ -1,7 +1,11 @@
-use crate::analyzers::roles::{compress_roles_wr, get_roles_wr, roles_wr_to_json};
+use crate::analyzers::roles::{
+    compress_roles_wr, get_roles_records, get_roles_synergies, get_roles_wr,
+};
 use crate::data_retrieval::retrieval_agent::process_guild_matches_retrieval;
 use crate::match_stats::Match;
-use crate::storage::result_storage::store_roles_wr_result;
+use crate::storage::result_storage::{
+    store_roles_records_result, store_roles_synergy_result, store_roles_wr_result,
+};
 use std::{collections::VecDeque, sync::Arc};
 use tokio::sync::RwLock;
 use tokio::task::JoinHandle;
@@ -14,9 +18,16 @@ fn process_roles_wr(
     data: &Vec<Match>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let roles_wr = get_roles_wr(&data);
+    let roles_synergy = get_roles_synergies(&roles_wr);
+    let roles_records = get_roles_records(&roles_wr);
+
     let roles_wr = compress_roles_wr(roles_wr);
-    let roles_wr_json = roles_wr_to_json(roles_wr);
+    let roles_wr_json = serde_json::to_value(roles_wr).unwrap();
+    let roles_synergy_json = serde_json::to_value(roles_synergy).unwrap();
+    let roles_records_json = serde_json::to_value(roles_records).unwrap();
     store_roles_wr_result(guild_id, roles_wr_json)?;
+    store_roles_synergy_result(guild_id, roles_synergy_json)?;
+    store_roles_records_result(guild_id, roles_records_json)?;
     Ok(())
 }
 

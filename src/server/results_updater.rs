@@ -51,7 +51,6 @@ async fn update_results(
         let os_filename = file.file_name();
         let filename = os_filename.as_os_str().to_str().unwrap();
         if file.file_type()?.is_dir() && RE.is_match(filename) {
-            println!("Dir name matched.");
             if update_delay_elapsed(filename)? {
                 update_guild_data(data_processing_queue.clone(), filename).await?;
             }
