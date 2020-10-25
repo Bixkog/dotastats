@@ -1,5 +1,10 @@
+use crate::heroes_info::Hero;
+use crate::heroes_info::HeroesInfo;
+use crate::match_stats::Match;
+use crate::match_stats::PlayerName;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
+use std::ops::Add;
 
 #[macro_export]
 macro_rules! skip_fail {
@@ -15,6 +20,16 @@ macro_rules! skip_fail {
 pub struct WinRatio {
     pub wins: u32,
     pub looses: u32,
+}
+
+impl Add for WinRatio {
+    type Output = WinRatio;
+    fn add(self, other: WinRatio) -> <Self as std::ops::Add<WinRatio>>::Output {
+        WinRatio {
+            wins: self.wins + other.wins,
+            looses: self.looses + other.looses,
+        }
+    }
 }
 
 impl WinRatio {
@@ -58,4 +73,20 @@ impl PartialEq for WinRatio {
     fn eq(&self, other: &Self) -> bool {
         (self.looses * other.wins) == (self.wins * other.looses)
     }
+}
+
+/// Finds heroes played by players.
+pub fn get_heroes(
+    heroes_info: &HeroesInfo,
+    match_: &Match,
+    mut team: Vec<String>,
+) -> Vec<(PlayerName, Hero)> {
+    let mut team_setup = vec![];
+    team.sort();
+    for player in team {
+        let player_hero_id = skip_fail!(match_.get_player_hero(&player));
+        let hero = heroes_info.get_hero(player_hero_id);
+        team_setup.push((player, hero));
+    }
+    team_setup
 }

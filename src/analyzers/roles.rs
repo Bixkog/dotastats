@@ -11,24 +11,8 @@ pub type Roles = Vec<(PlayerName, RoleName)>;
 pub type RolesWr = Vec<(Roles, WinRatio)>;
 pub type RolesSynergyResult = f64;
 
-/// Finds heroes played by players.
-fn get_heroes(
-    heroes_info: &HeroesInfo,
-    match_: &Match,
-    mut team: Vec<String>,
-) -> Vec<(PlayerName, Hero)> {
-    let mut team_setup = vec![];
-    team.sort();
-    for player in team {
-        let player_hero_id = skip_fail!(match_.get_player_hero(&player));
-        let hero = heroes_info.get_hero(player_hero_id);
-        team_setup.push((player, hero));
-    }
-    team_setup
-}
-
 /// As every hero can have several roles, this function generates subsets of those roles for a team.
-/// e.g. P1: [A, B], P2: [B, C] -> ["P1-A P2-B", "P1-A P2-C", "P1-B P2-B", "P1-B P2-C"]
+/// e.g. P1: [A, B], P2: [B, C] -> [(P1-A, P2-B), (P1-A, P2-C), (P1-B, P2-B), (P1-B, P2-C)]
 fn get_role_subsets(team_setup: Vec<(PlayerName, Hero)>) -> Vec<Roles> {
     let mut role_subsets = vec![Vec::new()];
     for (player, hero) in team_setup.iter() {
