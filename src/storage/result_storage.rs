@@ -14,11 +14,13 @@ const ROLES_WR_FILE: &str = "roles_wr.json";
 const ROLES_SYNERGY_FILE: &str = "roles_synergy.json";
 const ROLES_RECORDS_FILE: &str = "roles_records.json";
 const HEROES_PLAYERS_STATS_FILE: &str = "heroes_players_stats.json";
-const RESULT_FILES: [&str; 4] = [
+const PLAYERS_WR_FILE: &str = "players_wr.json";
+const RESULT_FILES: [&str; 5] = [
     ROLES_WR_FILE,
     ROLES_SYNERGY_FILE,
     ROLES_RECORDS_FILE,
     HEROES_PLAYERS_STATS_FILE,
+    PLAYERS_WR_FILE,
 ];
 
 pub fn is_guild_result_ready(guild_id: &String) -> io::Result<bool> {
@@ -90,6 +92,10 @@ pub fn store_heroes_players_stats_result(
     store_result(guild_id, payload, HEROES_PLAYERS_STATS_FILE)
 }
 
+pub fn store_players_wr_result(guild_id: &String, payload: serde_json::Value) -> io::Result<()> {
+    store_result(guild_id, payload, PLAYERS_WR_FILE)
+}
+
 pub fn get_roles_wr_results(guild_id: &String) -> io::Result<String> {
     get_results(guild_id, ROLES_WR_FILE)
 }
@@ -104,4 +110,8 @@ pub fn get_roles_records_results(guild_id: &String) -> io::Result<String> {
 
 pub fn get_heroes_players_stats_results(guild_id: &String) -> io::Result<String> {
     get_results(guild_id, HEROES_PLAYERS_STATS_FILE)
+}
+
+pub fn get_players_wr_results(guild_id: &String) -> io::Result<String> {
+    get_results(guild_id, PLAYERS_WR_FILE)
 }

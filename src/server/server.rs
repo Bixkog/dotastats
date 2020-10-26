@@ -52,6 +52,17 @@ async fn heroes_players_stats_req(guild_id: String) -> Option<content::Json<Stri
     }
 }
 
+#[get("/guild/players_wr/<guild_id>")]
+async fn players_wr_req(guild_id: String) -> Option<content::Json<String>> {
+    match result_storage::get_players_wr_results(&guild_id) {
+        Ok(payload) => Some(content::Json(payload)),
+        Err(e) => {
+            println!("Error during the reading of roles_records result: {}", e);
+            None
+        }
+    }
+}
+
 #[post("/guild/process/<guild_id>")]
 async fn process_guild<'a>(guild_id: String, data_processing_queue: State<'a, DPQ>) -> () {
     match result_storage::is_guild_result_ready(&guild_id) {
@@ -88,6 +99,7 @@ pub async fn run() -> Result<(), Box<dyn std::error::Error>> {
                 roles_synergy_req,
                 roles_records_req,
                 heroes_players_stats_req,
+                players_wr_req,
                 process_guild,
                 start,
                 stop,

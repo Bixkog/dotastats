@@ -24,7 +24,7 @@ pub fn get_heroes_played(data: &Vec<Match>) -> PlayerHeroScores {
             .map(|(p, hero)| (p, hero.name))
             .collect();
         let is_won = skip_fail!(match_.is_won());
-        for i in 1..6 {
+        for i in 1..=(team_setup.len()) {
             for team_combination in team_setup.clone().into_iter().combinations(i) {
                 heroes_played
                     .entry(team_combination)

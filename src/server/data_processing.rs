@@ -1,12 +1,13 @@
 use crate::analyzers::heroes::{get_hero_players_stats, get_heroes_played};
+use crate::analyzers::players::get_players_wr;
 use crate::analyzers::roles::{
     compress_roles_wr, get_roles_records, get_roles_synergies, get_roles_wr,
 };
 use crate::data_retrieval::retrieval_agent::process_guild_matches_retrieval;
 use crate::match_stats::Match;
 use crate::storage::result_storage::{
-    store_heroes_players_stats_result, store_roles_records_result, store_roles_synergy_result,
-    store_roles_wr_result,
+    store_heroes_players_stats_result, store_players_wr_result, store_roles_records_result,
+    store_roles_synergy_result, store_roles_wr_result,
 };
 use std::{collections::VecDeque, sync::Arc};
 use tokio::sync::RwLock;
@@ -44,6 +45,16 @@ fn process_heroes_data(
     Ok(())
 }
 
+fn process_players_data(
+    guild_id: &String,
+    matches: &Vec<Match>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let players_wr = get_players_wr(matches);
+    let players_wr_json = serde_json::to_value(players_wr)?;
+    store_players_wr_result(guild_id, players_wr_json)?;
+    Ok(())
+}
+
 async fn process_guild_data(
     guild_id: &String,
     update: bool,
@@ -51,6 +62,7 @@ async fn process_guild_data(
     let matches = process_guild_matches_retrieval(guild_id, update).await?;
     process_roles_wr(&guild_id, &matches)?;
     process_heroes_data(&guild_id, &matches)?;
+    process_players_data(&guild_id, &matches)?;
     Ok(())
 }
 
