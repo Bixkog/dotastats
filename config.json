@@ -1,5 +1,8 @@
 {
     "min_roles_wr_games": 30,
-    "update_every_n_days": 5,
-    "heroes_info_filename": "heroes.json"
+    "update_every_n_days": 1,
+    "heroes_info_filename": "heroes.json",
+    "mongodb_host": "127.0.0.1",
+    "mongodb_port": 27017,
+    "db_guild_data_chunk_size": 100
 }

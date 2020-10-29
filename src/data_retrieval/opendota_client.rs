@@ -1,12 +1,20 @@
 use crate::types::{GuildId, MatchId, PlayerId};
-use crate::utils::get_req_at60rpm;
 use reqwest;
+use tokio::time::{delay_until, Duration, Instant};
 
 pub struct OpenDotaClient {}
 
 impl OpenDotaClient {
     pub fn new() -> Self {
         Self {}
+    }
+    /// Sends get requests. Waits 1 second to ensure rpm <= 60.
+    async fn get_req_at60rpm(&self, url: &String) -> reqwest::Result<serde_json::Value> {
+        let start_inst = Instant::now();
+        let response = reqwest::get(url).await?.text().await?;
+        delay_until(start_inst + Duration::from_secs(1)).await;
+        Ok(serde_json::from_str(&response)
+            .expect(format!("Can't parse response: {}", response).as_str()))
     }
 
     /// Retrieves members steam_id of provided guild via https://api.stratz.com/graphql post endpoint.
@@ -45,8 +53,10 @@ impl OpenDotaClient {
         player_id: &PlayerId,
     ) -> reqwest::Result<serde_json::Value> {
         println!("Fetching info about player: {}", player_id);
-        get_req_at60rpm(&format!("https://api.opendota.com/api/players/{}", player_id).to_string())
-            .await
+        self.get_req_at60rpm(
+            &format!("https://api.opendota.com/api/players/{}", player_id).to_string(),
+        )
+        .await
     }
 
     /// Get match_ids of all games of a specified player.
@@ -56,10 +66,11 @@ impl OpenDotaClient {
         player_id: &PlayerId,
     ) -> reqwest::Result<Vec<MatchId>> {
         println!("Fetching player matches: {}", player_id);
-        let response = get_req_at60rpm(
-            &format!("https://api.opendota.com/api/players/{}/matches", player_id).to_string(),
-        )
-        .await?;
+        let response = self
+            .get_req_at60rpm(
+                &format!("https://api.opendota.com/api/players/{}/matches", player_id).to_string(),
+            )
+            .await?;
         Ok(response
             .as_array()
             .unwrap()
@@ -72,10 +83,11 @@ impl OpenDotaClient {
     /// Uses https://api.opendota.com/api/matches/{match_id} endpoint.
     pub async fn fetch_match_info(&self, match_id: &MatchId) -> reqwest::Result<serde_json::Value> {
         println!("Fetching match info: {}", match_id);
-        let mut response = get_req_at60rpm(
-            &format!("https://api.opendota.com/api/matches/{}", match_id).to_string(),
-        )
-        .await?;
+        let mut response = self
+            .get_req_at60rpm(
+                &format!("https://api.opendota.com/api/matches/{}", match_id).to_string(),
+            )
+            .await?;
         if response["match_id"].is_null() {
             println!("Match_id is missing, assiging: {}", match_id);
             let obj = response.as_object_mut().unwrap();

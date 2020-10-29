@@ -1,4 +1,3 @@
-use crate::analyzers::heroes::{get_hero_players_stats, get_heroes_played};
 use crate::analyzers::players::get_players_wr;
 use crate::analyzers::roles::{
     compress_roles_wr, get_roles_records, get_roles_synergies, get_roles_wr,
@@ -9,12 +8,16 @@ use crate::storage::result_storage::{
     store_heroes_players_stats_result, store_players_wr_result, store_roles_records_result,
     store_roles_synergy_result, store_roles_wr_result,
 };
+use crate::{
+    analyzers::heroes::{get_hero_players_stats, get_heroes_played},
+    storage::Storage,
+};
 use std::{collections::VecDeque, sync::Arc};
 use tokio::sync::RwLock;
 use tokio::task::JoinHandle;
 
 /// data processing queue
-pub type DPQ = Arc<RwLock<VecDeque<(String, bool)>>>;
+pub type DPQ = Arc<RwLock<VecDeque<String>>>;
 
 fn process_roles_wr(
     guild_id: &String,
@@ -56,10 +59,10 @@ fn process_players_data(
 }
 
 async fn process_guild_data(
+    storage: Arc<Storage>,
     guild_id: &String,
-    update: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let matches = process_guild_matches_retrieval(guild_id, update).await?;
+    let matches = process_guild_matches_retrieval(storage, guild_id).await?;
     process_roles_wr(&guild_id, &matches)?;
     process_heroes_data(&guild_id, &matches)?;
     process_players_data(&guild_id, &matches)?;
@@ -69,9 +72,17 @@ async fn process_guild_data(
 pub async fn spawn_worker(queue: DPQ) -> JoinHandle<()> {
     tokio::spawn(async move {
         loop {
+            let storage = match Storage::new().await {
+                Ok(s) => s,
+                Err(e) => {
+                    println!("Unable to connect to database: {}", e);
+                    break;
+                }
+            };
+            let storage = Arc::new(storage);
             while queue.read().await.len() > 0 {
-                let (guild_id, update) = queue.read().await.front().unwrap().clone();
-                match process_guild_data(&guild_id, update).await {
+                let guild_id = queue.read().await.front().unwrap().clone();
+                match process_guild_data(storage.clone(), &guild_id).await {
                     Ok(()) => println!("Finished processing guild: {}", &guild_id),
                     Err(e) => println!("Error during processing guild data: {}", e),
                 };

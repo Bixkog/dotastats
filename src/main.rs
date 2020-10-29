@@ -7,9 +7,8 @@ mod match_stats;
 mod server;
 mod storage;
 mod types;
-mod utils;
-use config::{Config, File};
 
+use config::{Config, File};
 #[macro_use]
 extern crate lazy_static;
 #[macro_use]
@@ -22,6 +21,7 @@ lazy_static! {
         config
     };
 }
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     server::server::run().await?;

@@ -1,6 +1,6 @@
 use crate::server::data_processing::{self, DPQ};
+use crate::server::data_updater;
 use crate::server::health_routes::{health, start, stop};
-use crate::server::results_updater;
 use crate::storage::result_storage;
 use rocket;
 use rocket::response::content;
@@ -76,19 +76,18 @@ async fn process_guild<'a>(guild_id: String, data_processing_queue: State<'a, DP
             ()
         }
     }
-    let worker_task = (guild_id.clone(), false);
-    if data_processing_queue.read().await.contains(&worker_task) {
+    if data_processing_queue.read().await.contains(&guild_id) {
         println!("Guild {} is already in queue.", guild_id);
     } else {
         println!("Guild {} added to queue.", guild_id);
-        data_processing_queue.write().await.push_back(worker_task);
+        data_processing_queue.write().await.push_back(guild_id);
     }
 }
 
 pub async fn run() -> Result<(), Box<dyn std::error::Error>> {
     let data_processing_queue: DPQ = Arc::new(RwLock::new(VecDeque::new()));
     let data_processor = data_processing::spawn_worker(data_processing_queue.clone());
-    let updater = results_updater::spawn_worker(data_processing_queue.clone());
+    let updater = data_updater::spawn_worker(data_processing_queue.clone());
     updater.await;
     data_processor.await;
     rocket::ignite()

@@ -35,10 +35,7 @@ async fn update_guild_data(
         .as_str()
         .to_string();
     println!("Adding guild {} to update queue.", guild_id);
-    data_processing_queue
-        .write()
-        .await
-        .push_back((guild_id, true));
+    data_processing_queue.write().await.push_back(guild_id);
     Ok(())
 }
 
