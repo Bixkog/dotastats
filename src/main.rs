@@ -13,6 +13,7 @@ use config::{Config, File};
 extern crate lazy_static;
 #[macro_use]
 extern crate rocket;
+use storage::Storage;
 
 lazy_static! {
     pub static ref CONFIG: Config = {

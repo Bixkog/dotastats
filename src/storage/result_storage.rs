@@ -1,117 +1,93 @@
+use crate::storage::Storage;
 use chrono::Utc;
+use mongodb::{
+    self,
+    bson::{self, doc},
+};
 use serde::{Deserialize, Serialize};
-use std::fs::{create_dir, metadata, read, write};
-use std::io::{self, ErrorKind};
+use std::{collections::HashSet, fmt};
+use strum::IntoEnumIterator;
+use strum_macros::EnumIter;
+use tokio::stream::StreamExt;
+
+#[derive(Debug, EnumIter)]
+pub enum AnalysisTag {
+    RolesWr,
+    RolesSynergy,
+    RolesRecords,
+    HeroesPlayersStats,
+    PlayersWr,
+}
+
+impl fmt::Display for AnalysisTag {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
 
 #[derive(Serialize, Deserialize)]
 struct AnalysisResult {
     guild_id: String,
     timestamp: i64,
-    payload: serde_json::Value,
+    tag: String,
+    payload: String,
 }
 
-const ROLES_WR_FILE: &str = "roles_wr.json";
-const ROLES_SYNERGY_FILE: &str = "roles_synergy.json";
-const ROLES_RECORDS_FILE: &str = "roles_records.json";
-const HEROES_PLAYERS_STATS_FILE: &str = "heroes_players_stats.json";
-const PLAYERS_WR_FILE: &str = "players_wr.json";
-const RESULT_FILES: [&str; 5] = [
-    ROLES_WR_FILE,
-    ROLES_SYNERGY_FILE,
-    ROLES_RECORDS_FILE,
-    HEROES_PLAYERS_STATS_FILE,
-    PLAYERS_WR_FILE,
-];
-
-pub fn is_guild_result_ready(guild_id: &String) -> io::Result<bool> {
-    Ok(RESULT_FILES.iter().all(|&filename| {
-        match metadata(format!("{}_res/{}", guild_id, filename)) {
-            Ok(md) => md.is_file(),
-            Err(_) => false,
+impl Storage {
+    pub async fn is_guild_stats_ready(&self, guild_id: &String) -> mongodb::error::Result<bool> {
+        let db = self.db_client.database("dotastats");
+        let coll = db.collection("analysis_results");
+        let mut cursor = coll.find(doc! {"guild_id": guild_id}, None).await?;
+        let mut tags_found = vec![];
+        while let Some(result_doc) = cursor.next().await {
+            let result_doc = result_doc?;
+            tags_found.push(
+                result_doc
+                    .get_str("tag")
+                    .expect("Field tag not found in analysis result doc.")
+                    .to_string(),
+            );
         }
-    }))
-}
+        let all_tags: HashSet<String> = AnalysisTag::iter().map(|tag| tag.to_string()).collect();
+        Ok(all_tags == tags_found.into_iter().collect())
+    }
 
-fn create_guild_dir(guild_id: &String) -> io::Result<()> {
-    let guild_dir = format!("{}_res", guild_id);
-    match create_dir(guild_dir.clone()) {
-        Ok(()) => Ok(()),
-        Err(e) => {
-            if e.kind() == ErrorKind::AlreadyExists {
-                Ok(())
-            } else {
-                Err(e)
-            }
+    pub async fn store_result(
+        &self,
+        guild_id: &String,
+        payload: serde_json::Value,
+        analysis_tag: AnalysisTag,
+    ) -> mongodb::error::Result<()> {
+        let res = AnalysisResult {
+            guild_id: guild_id.clone(),
+            timestamp: Utc::now().timestamp(),
+            tag: analysis_tag.to_string(),
+            payload: payload.to_string(),
+        };
+        let result_doc = bson::to_document(&res)?;
+        let db = self.db_client.database("dotastats");
+        let coll = db.collection("analysis_results");
+        coll.insert_one(result_doc, None).await?;
+        Ok(())
+    }
+
+    pub async fn get_result(
+        &self,
+        guild_id: &String,
+        analysis_tag: AnalysisTag,
+    ) -> mongodb::error::Result<Option<String>> {
+        let db = self.db_client.database("dotastats");
+        let coll = db.collection("analysis_results");
+        let filter = doc! {"guild_id": guild_id, "tag": analysis_tag.to_string()};
+        let result_doc = coll.find_one(filter, None).await?;
+        match result_doc {
+            Some(result_doc) => Ok(Some(
+                result_doc
+                    .get_str("payload")
+                    .expect("Field payload not present in result document.")
+                    .to_string(),
+            )),
+            None => Ok(None),
         }
     }
-}
-
-fn store_result(
-    guild_id: &String,
-    payload: serde_json::Value,
-    target_filename: &str,
-) -> io::Result<()> {
-    let res = AnalysisResult {
-        guild_id: guild_id.clone(),
-        timestamp: Utc::now().timestamp(),
-        payload,
-    };
-    create_guild_dir(guild_id)?;
-    let res_serialized = serde_json::to_value(res)?.to_string();
-    write(
-        format!("{}_res/{}", guild_id, target_filename),
-        res_serialized,
-    )?;
-    Ok(())
-}
-
-fn get_results(guild_id: &String, target_filename: &str) -> io::Result<String> {
-    let result = read(format!("{}_res/{}", guild_id, target_filename))?;
-    match String::from_utf8(result) {
-        Ok(s) => Ok(s),
-        Err(e) => Err(std::io::Error::new(ErrorKind::InvalidData, e)),
-    }
-}
-
-pub fn store_roles_wr_result(guild_id: &String, payload: serde_json::Value) -> io::Result<()> {
-    store_result(guild_id, payload, ROLES_WR_FILE)
-}
-
-pub fn store_roles_synergy_result(guild_id: &String, payload: serde_json::Value) -> io::Result<()> {
-    store_result(guild_id, payload, ROLES_SYNERGY_FILE)
-}
-
-pub fn store_roles_records_result(guild_id: &String, payload: serde_json::Value) -> io::Result<()> {
-    store_result(guild_id, payload, ROLES_RECORDS_FILE)
-}
-
-pub fn store_heroes_players_stats_result(
-    guild_id: &String,
-    payload: serde_json::Value,
-) -> io::Result<()> {
-    store_result(guild_id, payload, HEROES_PLAYERS_STATS_FILE)
-}
-
-pub fn store_players_wr_result(guild_id: &String, payload: serde_json::Value) -> io::Result<()> {
-    store_result(guild_id, payload, PLAYERS_WR_FILE)
-}
-
-pub fn get_roles_wr_results(guild_id: &String) -> io::Result<String> {
-    get_results(guild_id, ROLES_WR_FILE)
-}
-
-pub fn get_roles_synergy_results(guild_id: &String) -> io::Result<String> {
-    get_results(guild_id, ROLES_SYNERGY_FILE)
-}
-
-pub fn get_roles_records_results(guild_id: &String) -> io::Result<String> {
-    get_results(guild_id, ROLES_RECORDS_FILE)
-}
-
-pub fn get_heroes_players_stats_results(guild_id: &String) -> io::Result<String> {
-    get_results(guild_id, HEROES_PLAYERS_STATS_FILE)
-}
-
-pub fn get_players_wr_results(guild_id: &String) -> io::Result<String> {
-    get_results(guild_id, PLAYERS_WR_FILE)
 }

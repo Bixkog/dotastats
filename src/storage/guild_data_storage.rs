@@ -1,3 +1,4 @@
+use crate::storage::Storage;
 use crate::types::GuildId;
 use crate::CONFIG;
 use mongodb::{
@@ -6,10 +7,6 @@ use mongodb::{
 };
 use serde::{de::Error, Deserialize, Serialize};
 use tokio::stream::StreamExt;
-
-pub struct Storage {
-    db_client: mongodb::Client,
-}
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct MatchData {
@@ -52,19 +49,7 @@ fn extract_match_data_from_doc(match_bson: &mut Bson) -> Option<serde_json::Valu
 }
 
 impl Storage {
-    pub async fn new() -> mongodb::error::Result<Storage> {
-        let db_host = CONFIG
-            .get_str("mongodb_host")
-            .expect("Field mongodb_host not set in config.");
-        let db_port = CONFIG
-            .get_int("mongodb_port")
-            .expect("Field mongodb_port not set in config.");
-        let db_uri = format!("mongodb://{}:{}/", db_host, db_port);
-        Ok(Storage {
-            db_client: mongodb::Client::with_uri_str(db_uri.as_str()).await?,
-        })
-    }
-
+    /// Retrieves matches of a guild from dotastats/guild_data collection.
     pub async fn get_guild_data(
         &self,
         guild_id: &GuildId,
@@ -86,7 +71,7 @@ impl Storage {
         Ok(res)
     }
 
-    /// Adds ids and info to ids, info guild files.
+    /// Adds match data to dotastats/guild_data collection, in 100 elements batches.
     pub async fn add_guild_data(
         &self,
         guild_id: &GuildId,
