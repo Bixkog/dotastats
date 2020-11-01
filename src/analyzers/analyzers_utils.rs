@@ -3,8 +3,10 @@ use crate::heroes_info::HeroesInfo;
 use crate::match_stats::Match;
 use crate::match_stats::PlayerName;
 use serde::{Deserialize, Serialize};
+use std::borrow::Borrow;
 use std::cmp::Ordering;
 use std::ops::Add;
+use std::ops::Sub;
 
 #[macro_export]
 macro_rules! skip_fail {
@@ -29,6 +31,19 @@ impl Add for WinRatio {
             wins: self.wins + other.wins,
             looses: self.looses + other.looses,
         }
+    }
+}
+
+impl Sub for WinRatio {
+    type Output = Option<WinRatio>;
+    fn sub(self, other: WinRatio) -> <Self as std::ops::Sub<WinRatio>>::Output {
+        if self.wins < other.wins || self.looses < other.looses {
+            return None;
+        }
+        Some(WinRatio {
+            wins: self.wins - other.wins,
+            looses: self.looses - other.looses,
+        })
     }
 }
 

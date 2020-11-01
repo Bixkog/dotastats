@@ -26,11 +26,18 @@ impl fmt::Display for AnalysisTag {
 }
 
 #[derive(Serialize, Deserialize)]
-struct AnalysisResult {
+struct StoredResult {
     guild_id: String,
     timestamp: i64,
     tag: String,
     payload: String,
+}
+
+#[derive(Serialize, Deserialize)]
+struct ResultToReturn {
+    guild_id: String,
+    timestamp: i64,
+    payload: serde_json::Value,
 }
 
 impl Storage {
@@ -58,7 +65,7 @@ impl Storage {
         payload: serde_json::Value,
         analysis_tag: AnalysisTag,
     ) -> mongodb::error::Result<()> {
-        let res = AnalysisResult {
+        let res = StoredResult {
             guild_id: guild_id.clone(),
             timestamp: Utc::now().timestamp(),
             tag: analysis_tag.to_string(),
@@ -80,14 +87,18 @@ impl Storage {
         let coll = db.collection("analysis_results");
         let filter = doc! {"guild_id": guild_id, "tag": analysis_tag.to_string()};
         let result_doc = coll.find_one(filter, None).await?;
-        match result_doc {
-            Some(result_doc) => Ok(Some(
-                result_doc
-                    .get_str("payload")
-                    .expect("Field payload not present in result document.")
-                    .to_string(),
-            )),
-            None => Ok(None),
-        }
+        let stored_result: StoredResult = match result_doc {
+            Some(result_doc) => {
+                bson::from_bson(result_doc.into()).expect("Unable to parse stored result.")
+            }
+            None => return Ok(None),
+        };
+        let res = ResultToReturn {
+            guild_id: stored_result.guild_id,
+            timestamp: stored_result.timestamp,
+            payload: serde_json::from_str(stored_result.payload.as_str())
+                .expect("Unable to parse stored result payload."),
+        };
+        Ok(Some(serde_json::to_string(&res).unwrap()))
     }
 }

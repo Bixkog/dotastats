@@ -61,22 +61,25 @@ pub fn get_roles_synergies(roles_wr: &RolesWr) -> Vec<(Roles, RolesSynergyResult
             s
         },
     );
-    let mut result = vec![];
     let relevant_total_games = CONFIG.get_int("min_roles_wr_games").unwrap() as u32;
-    for (roles, team_wr) in roles_wr {
-        if roles.len() <= 1 || team_wr.total() < relevant_total_games {
-            continue;
-        }
-        let mut avg_solo_wr = 0.;
-        for role in roles.iter() {
-            avg_solo_wr += single_wr[role].as_percent();
-        }
-        avg_solo_wr = avg_solo_wr / roles.len() as f64;
-        let synergy = team_wr.as_percent() / avg_solo_wr;
-        let synergy = (synergy * 1000.).round() / 1000.;
-        result.push((roles.clone(), synergy));
-    }
-    result
+    roles_wr
+        .iter()
+        .filter_map(|(roles, team_wr)| {
+            if roles.len() <= 1 || team_wr.total() < relevant_total_games {
+                return None;
+            }
+            let mut avg_solo_wr = 0.;
+            for role in roles.iter() {
+                avg_solo_wr += (single_wr[role].clone() - team_wr.clone())
+                    .expect("Single wr does no contain some team wr.")
+                    .as_percent();
+            }
+            avg_solo_wr = avg_solo_wr / roles.len() as f64;
+            let synergy = team_wr.as_percent() / avg_solo_wr;
+            let synergy = (synergy * 1000.).round() / 1000.;
+            Some((roles.clone(), synergy))
+        })
+        .collect()
 }
 
 #[derive(Serialize)]
