@@ -74,6 +74,8 @@ impl Storage {
         let result_doc = bson::to_document(&res)?;
         let db = self.db_client.database("dotastats");
         let coll = db.collection("analysis_results");
+        let filter = doc! {"guild_id": guild_id, "tag": analysis_tag.to_string()};
+        coll.delete_one(filter, None).await?;
         coll.insert_one(result_doc, None).await?;
         Ok(())
     }
