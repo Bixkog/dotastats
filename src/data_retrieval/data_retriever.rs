@@ -1,6 +1,7 @@
 use crate::data_retrieval::opendota_client::OpenDotaClient;
 use crate::storage::Storage;
 use crate::types::{GuildId, MatchId};
+use crate::BoxError;
 use crate::CONFIG;
 use serde_json;
 use std::collections::HashSet;
@@ -30,7 +31,7 @@ impl DataRetriever {
         &self,
         guild_id: &GuildId,
         match_ids: Vec<MatchId>,
-    ) -> Result<Vec<serde_json::Value>, Box<dyn std::error::Error>> {
+    ) -> Result<Vec<serde_json::Value>, BoxError> {
         let chunk_size = CONFIG
             .get_int("db_guild_data_chunk_size")
             .expect("Field db_guild_data_chunk_size not set in config.")
@@ -53,12 +54,9 @@ impl DataRetriever {
     }
 
     /// Gets match data for guild, either from db or opendota. Also saves missing match data to the db.
-    pub async fn get_guild_raw_data(
-        &self,
-        guild_id: &GuildId,
-    ) -> Result<GuildRawData, Box<dyn std::error::Error>> {
+    pub async fn get_guild_raw_data(&self, guild_id: &GuildId) -> Result<GuildRawData, BoxError> {
         let members_ids = self.od_client.fetch_guild_members_ids(guild_id).await?;
-        println!("Got {} members of guild: {}", members_ids.len(), &guild_id);
+        info!("Got {} members of guild: {}", members_ids.len(), &guild_id);
         let mut matches_of_interest = HashSet::new();
         let mut members = vec![];
         for member_id in members_ids.iter() {
@@ -67,7 +65,7 @@ impl DataRetriever {
             }
             members.push(self.od_client.fetch_player_info(member_id).await?);
         }
-        println!("Found {} matches.", matches_of_interest.len());
+        info!("Found {} matches.", matches_of_interest.len());
 
         let mut cached_matches = self.storage.get_guild_data(guild_id).await?;
         let cached_ids: HashSet<MatchId> = cached_matches
@@ -79,7 +77,7 @@ impl DataRetriever {
             .difference(&cached_ids)
             .map(|id| id.clone())
             .collect();
-        println!(
+        info!(
             "Cached: {}. Not-cached: {}.",
             cached_ids.len(),
             not_cached_ids.len()

@@ -2,6 +2,7 @@ use crate::server::data_processing::{self, DPQ};
 use crate::server::data_updater;
 use crate::server::health_routes::{health, start, stop};
 use crate::storage::{result_storage::AnalysisTag, Storage};
+use crate::BoxError;
 use rocket;
 use rocket::response::content;
 use rocket::State;
@@ -14,13 +15,9 @@ async fn roles_wr_req<'a>(
     storage: State<'a, Storage>,
 ) -> Option<content::Json<String>> {
     match storage.get_result(&guild_id, AnalysisTag::RolesWr).await {
-        Ok(Some(payload)) => Some(content::Json(payload)),
-        Ok(None) => {
-            println!("roles_wr result not found");
-            None
-        }
+        Ok(payload) => Some(content::Json(payload)),
         Err(e) => {
-            println!("Error during the reading of roles_wr result: {}", e);
+            warn!("Error during the reading of roles_synergy result: {}", e);
             None
         }
     }
@@ -35,13 +32,9 @@ async fn roles_synergy_req<'a>(
         .get_result(&guild_id, AnalysisTag::RolesSynergy)
         .await
     {
-        Ok(Some(payload)) => Some(content::Json(payload)),
-        Ok(None) => {
-            println!("roles_synergy result not found");
-            None
-        }
+        Ok(payload) => Some(content::Json(payload)),
         Err(e) => {
-            println!("Error during the reading of roles_synergy result: {}", e);
+            warn!("Error during the reading of roles_synergy result: {}", e);
             None
         }
     }
@@ -56,13 +49,9 @@ async fn roles_records_req<'a>(
         .get_result(&guild_id, AnalysisTag::RolesRecords)
         .await
     {
-        Ok(Some(payload)) => Some(content::Json(payload)),
-        Ok(None) => {
-            println!("roles_records result not found");
-            None
-        }
+        Ok(payload) => Some(content::Json(payload)),
         Err(e) => {
-            println!("Error during the reading of roles_records result: {}", e);
+            warn!("Error during the reading of roles_records result: {}", e);
             None
         }
     }
@@ -77,13 +66,9 @@ async fn heroes_players_stats_req<'a>(
         .get_result(&guild_id, AnalysisTag::HeroesPlayersStats)
         .await
     {
-        Ok(Some(payload)) => Some(content::Json(payload)),
-        Ok(None) => {
-            println!("heroes_players_stats result not found");
-            None
-        }
+        Ok(payload) => Some(content::Json(payload)),
         Err(e) => {
-            println!(
+            warn!(
                 "Error during the reading of heroes_players_stats result: {}",
                 e
             );
@@ -98,13 +83,9 @@ async fn players_wr_req<'a>(
     storage: State<'a, Storage>,
 ) -> Option<content::Json<String>> {
     match storage.get_result(&guild_id, AnalysisTag::PlayersWr).await {
-        Ok(Some(payload)) => Some(content::Json(payload)),
-        Ok(None) => {
-            println!("players_wr result not found");
-            None
-        }
+        Ok(payload) => Some(content::Json(payload)),
         Err(e) => {
-            println!("Error during the reading of players_wr result: {}", e);
+            warn!("Error during the reading of players_wr result: {}", e);
             None
         }
     }
@@ -120,7 +101,7 @@ async fn process_guild<'a>(
         Ok(true) => return (),
         Ok(false) => (),
         Err(e) => {
-            println!(
+            warn!(
                 "Error during checking if guild is processed: {}. Recomputing.",
                 e
             );
@@ -128,14 +109,14 @@ async fn process_guild<'a>(
         }
     }
     if data_processing_queue.read().await.contains(&guild_id) {
-        println!("Guild {} is already in queue.", guild_id);
+        info!("Guild {} is already in queue.", guild_id);
     } else {
-        println!("Guild {} added to queue.", guild_id);
+        info!("Guild {} added to queue.", guild_id);
         data_processing_queue.write().await.push_back(guild_id);
     }
 }
 
-pub async fn run() -> Result<(), Box<dyn std::error::Error>> {
+pub async fn run() -> Result<(), BoxError> {
     let data_processing_queue: DPQ = Arc::new(RwLock::new(VecDeque::new()));
     let storage = Storage::from_config().await?;
     let data_processor = data_processing::spawn_worker(data_processing_queue.clone());

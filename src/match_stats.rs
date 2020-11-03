@@ -149,7 +149,7 @@ impl Match {
         Ok(team)
     }
 
-    pub fn get_team_size(&self) -> StatsResult<usize> {
-        Ok(self.players_stats.len())
+    pub fn get_team_size(&self) -> usize {
+        self.players_stats.len()
     }
 }

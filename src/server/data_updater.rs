@@ -1,4 +1,5 @@
 use crate::server::data_processing;
+use crate::BoxError;
 use crate::CONFIG;
 use regex::Regex;
 use std::fs::read_dir;
@@ -26,7 +27,7 @@ fn update_delay_elapsed(dirname: &str) -> std::io::Result<bool> {
 async fn update_guild_data(
     data_processing_queue: data_processing::DPQ,
     dirname: &str,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), BoxError> {
     let guild_id = RE
         .captures(dirname)
         .unwrap()
@@ -34,15 +35,12 @@ async fn update_guild_data(
         .unwrap()
         .as_str()
         .to_string();
-    println!("Adding guild {} to update queue.", guild_id);
+    info!("Adding guild {} to update queue.", guild_id);
     data_processing_queue.write().await.push_back(guild_id);
     Ok(())
 }
 
-async fn update_results(
-    data_processing_queue: data_processing::DPQ,
-) -> Result<(), Box<dyn std::error::Error>> {
-    println!("Updating results!.");
+async fn update_results(data_processing_queue: data_processing::DPQ) -> Result<(), BoxError> {
     for file in read_dir(".")? {
         let file = file?;
         let os_filename = file.file_name();
@@ -53,7 +51,6 @@ async fn update_results(
             }
         }
     }
-    println!("Update finished!.");
     Ok(())
 }
 
@@ -63,7 +60,7 @@ pub async fn spawn_worker(data_processing_queue: data_processing::DPQ) -> JoinHa
             match update_results(data_processing_queue.clone()).await {
                 Ok(()) => (),
                 Err(e) => {
-                    println!("Error {} occured during update. Retry in 1 hour.", e);
+                    warn!("Error {} occured during update. Retry in 1 hour.", e);
                     ()
                 }
             };

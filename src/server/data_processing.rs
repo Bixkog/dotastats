@@ -7,6 +7,7 @@ use crate::data_retrieval::retrieval_agent::process_guild_matches_retrieval;
 use crate::match_stats::Match;
 use crate::storage::result_storage::AnalysisTag;
 use crate::storage::Storage;
+use crate::BoxError;
 use std::{collections::VecDeque, sync::Arc};
 use tokio::sync::RwLock;
 use tokio::task::JoinHandle;
@@ -18,15 +19,15 @@ async fn process_roles_wr(
     storage: Arc<Storage>,
     guild_id: &String,
     matches: &Vec<Match>,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), BoxError> {
     let roles_wr = get_roles_wr(&matches);
     let roles_synergy = get_roles_synergies(&roles_wr);
     let roles_records = get_roles_records(&roles_wr);
 
     let roles_wr = compress_roles_wr(roles_wr);
-    let roles_wr_json = serde_json::to_value(roles_wr).unwrap();
-    let roles_synergy_json = serde_json::to_value(roles_synergy).unwrap();
-    let roles_records_json = serde_json::to_value(roles_records).unwrap();
+    let roles_wr_json = serde_json::to_value(roles_wr)?;
+    let roles_synergy_json = serde_json::to_value(roles_synergy)?;
+    let roles_records_json = serde_json::to_value(roles_records)?;
     storage
         .store_result(guild_id, roles_wr_json, AnalysisTag::RolesWr)
         .await?;
@@ -43,7 +44,7 @@ async fn process_heroes_data(
     storage: Arc<Storage>,
     guild_id: &String,
     matches: &Vec<Match>,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), BoxError> {
     let heroes_played = get_heroes_played(&matches);
     let heroes_players_stats = get_hero_players_stats(&heroes_played);
     let heroes_players_stats_json = serde_json::to_value(heroes_players_stats)?;
@@ -61,7 +62,7 @@ async fn process_players_data(
     storage: Arc<Storage>,
     guild_id: &String,
     matches: &Vec<Match>,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), BoxError> {
     let players_wr = get_players_wr(matches);
     let players_wr_json = serde_json::to_value(players_wr)?;
     storage
@@ -70,10 +71,7 @@ async fn process_players_data(
     Ok(())
 }
 
-async fn process_guild_data(
-    storage: Arc<Storage>,
-    guild_id: &String,
-) -> Result<(), Box<dyn std::error::Error>> {
+async fn process_guild_data(storage: Arc<Storage>, guild_id: &String) -> Result<(), BoxError> {
     let matches = process_guild_matches_retrieval(storage.clone(), guild_id).await?;
     process_roles_wr(storage.clone(), &guild_id, &matches).await?;
     process_heroes_data(storage.clone(), &guild_id, &matches).await?;
@@ -87,16 +85,22 @@ pub async fn spawn_worker(queue: DPQ) -> JoinHandle<()> {
             let storage = match Storage::from_config().await {
                 Ok(s) => s,
                 Err(e) => {
-                    println!("Unable to connect to database: {}", e);
+                    error!("Unable to connect to database: {}", e);
                     break;
                 }
             };
             let storage = Arc::new(storage);
             while queue.read().await.len() > 0 {
-                let guild_id = queue.read().await.front().unwrap().clone();
+                let guild_id = match queue.read().await.front() {
+                    Some(val) => val.clone(),
+                    None => {
+                        error!("Unable to aquire front from processing queue.");
+                        break;
+                    }
+                };
                 match process_guild_data(storage.clone(), &guild_id).await {
-                    Ok(()) => println!("Finished processing guild: {}", &guild_id),
-                    Err(e) => println!("Error during processing guild data: {}", e),
+                    Ok(()) => info!("Finished processing guild: {}", &guild_id),
+                    Err(e) => warn!("Error during processing guild data: {}", e),
                 };
                 queue.write().await.pop_front();
             }

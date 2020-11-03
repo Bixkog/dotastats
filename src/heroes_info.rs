@@ -2,6 +2,10 @@ use serde_json;
 use std::collections::HashMap;
 use std::fs::read_to_string;
 
+use crate::BoxError;
+use serde::de::Error;
+use serde_json::error::Error as serde_error;
+
 #[derive(Clone, Default)]
 pub struct Hero {
     pub name: String,
@@ -13,34 +17,46 @@ pub struct HeroesInfo {
 }
 
 impl HeroesInfo {
-    pub fn init(heroes_filename: String) -> Self {
-        let raw_heroes = serde_json::from_str::<serde_json::Value>(
-            read_to_string(heroes_filename)
-                .expect("Can't open heroes contants file.")
-                .as_str(),
-        )
-        .unwrap();
+    pub fn init(heroes_filename: String) -> Result<Self, BoxError> {
+        let raw_heroes: serde_json::Value =
+            serde_json::from_str(read_to_string(heroes_filename)?.as_str())?;
         let heroes_constants = raw_heroes
             .as_object()
-            .expect("Heroes constants are not object.");
+            .ok_or(serde_error::custom("Heroes constants is not json object."))?;
         let mut heroes_info = HeroesInfo {
             heroes: HashMap::new(),
         };
         for (id, hero) in heroes_constants {
-            let id_int = id.parse::<u64>().unwrap();
+            let id_int = id.parse::<u64>()?;
             assert!(id_int > 0, "hero id is 0.");
             let hero_parsed = Hero {
-                name: hero["localized_name"].as_str().unwrap().to_string(),
+                name: hero["localized_name"]
+                    .as_str()
+                    .ok_or(serde_error::custom(format!(
+                        "no field localized_name for hero_id: {}",
+                        id_int
+                    )))?
+                    .to_string(),
                 roles: hero["roles"]
                     .as_array()
-                    .unwrap()
+                    .ok_or(serde_error::custom(format!(
+                        "no field roles for hero_id: {}",
+                        id_int
+                    )))?
                     .iter()
-                    .map(|v| v.as_str().unwrap().to_string())
-                    .collect(),
+                    .map(|v| {
+                        Ok(v.as_str()
+                            .ok_or(serde_error::custom(format!(
+                                "roles is not string for hero_id: {}",
+                                id_int
+                            )))?
+                            .to_string())
+                    })
+                    .collect::<Result<Vec<String>, serde_json::Error>>()?,
             };
             heroes_info.heroes.insert(id_int, hero_parsed);
         }
-        heroes_info
+        Ok(heroes_info)
     }
 
     pub fn get_hero(&self, hero_id: u64) -> Hero {

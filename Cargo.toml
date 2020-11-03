@@ -23,3 +23,5 @@ rocket = { git = "https://github.com/SergioBenitez/Rocket.git"}
 mongodb = "*"
 strum = "0.19"
 strum_macros = "0.19"
+log = "0.4"
+simplelog = "^0.7.6"

@@ -14,7 +14,16 @@ pub type PlayerHeroScores = Vec<(Vec<(PlayerName, HeroName)>, WinRatio)>;
 
 pub fn get_heroes_played(data: &Vec<Match>) -> PlayerHeroScores {
     let heroes_info_filename = CONFIG.get_str("heroes_info_filename").unwrap();
-    let heroes_info = HeroesInfo::init(heroes_info_filename);
+    let heroes_info = match HeroesInfo::init(heroes_info_filename) {
+        Ok(val) => val,
+        Err(e) => {
+            warn!(
+                "Can't load heroes_info from heroes.json: {}. Stoping analysis.",
+                e
+            );
+            return vec![];
+        }
+    };
     let mut heroes_played: HashMap<Vec<(PlayerName, HeroName)>, WinRatio> = HashMap::new();
     for match_ in data.iter() {
         let team = skip_fail!(match_.get_team());

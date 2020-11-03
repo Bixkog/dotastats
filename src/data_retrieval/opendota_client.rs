@@ -1,5 +1,8 @@
 use crate::types::{GuildId, MatchId, PlayerId};
+use crate::BoxError;
 use reqwest;
+use serde::de::Error;
+use serde_json::error::Error as serde_error;
 use tokio::time::{delay_until, Duration, Instant};
 
 pub struct OpenDotaClient {}
@@ -9,12 +12,18 @@ impl OpenDotaClient {
         Self {}
     }
     /// Sends get requests. Waits 1 second to ensure rpm <= 60.
-    async fn get_req_at60rpm(&self, url: &String) -> reqwest::Result<serde_json::Value> {
+    async fn get_req_at60rpm(&self, url: &String) -> Result<serde_json::Value, BoxError> {
         let start_inst = Instant::now();
         let response = reqwest::get(url).await?.text().await?;
+        let parsed_respone = match serde_json::from_str(&response) {
+            Ok(json) => json,
+            Err(e) => {
+                warn!("Unable to parse response at url: {}", url);
+                return Err(Box::new(e));
+            }
+        };
         delay_until(start_inst + Duration::from_secs(1)).await;
-        Ok(serde_json::from_str(&response)
-            .expect(format!("Can't parse response: {}", response).as_str()))
+        Ok(parsed_respone)
     }
 
     /// Retrieves members steam_id of provided guild via https://api.stratz.com/graphql post endpoint.
@@ -22,8 +31,8 @@ impl OpenDotaClient {
     pub async fn fetch_guild_members_ids(
         &self,
         guild_id: &GuildId,
-    ) -> reqwest::Result<Vec<PlayerId>> {
-        println!("Fetching members of guild: {}", guild_id);
+    ) -> Result<Vec<PlayerId>, BoxError> {
+        info!("Fetching members of guild: {}", guild_id);
         let req_body = format!(
             r#"{{
             "operationName":"GuildMembers",
@@ -38,21 +47,35 @@ impl OpenDotaClient {
             .await?
             .text()
             .await?;
-        let response_json: serde_json::Value = serde_json::from_str(&response).unwrap();
+        let response_json: serde_json::Value = match serde_json::from_str(&response) {
+            Ok(json) => json,
+            Err(e) => {
+                warn!(
+                    "Unable to parse guild members response for guild: {}",
+                    guild_id
+                );
+                return Err(Box::new(e));
+            }
+        };
         let members = response_json["data"]["guild"]["members"]
             .as_array()
-            .unwrap();
+            .ok_or(serde_error::custom("unable to read members of guild"))?;
         Ok(members
             .iter()
-            .map(|v| v["steamAccount"]["id"].as_u64().unwrap().to_string())
-            .collect())
+            .map(|v| {
+                Ok(v["steamAccount"]["id"]
+                    .as_u64()
+                    .ok_or(serde_error::custom("unable to guild member id"))?
+                    .to_string())
+            })
+            .collect::<Result<Vec<PlayerId>, serde_json::Error>>()?)
     }
 
     pub async fn fetch_player_info(
         &self,
         player_id: &PlayerId,
-    ) -> reqwest::Result<serde_json::Value> {
-        println!("Fetching info about player: {}", player_id);
+    ) -> Result<serde_json::Value, BoxError> {
+        info!("Fetching info about player: {}", player_id);
         self.get_req_at60rpm(
             &format!("https://api.opendota.com/api/players/{}", player_id).to_string(),
         )
@@ -64,8 +87,8 @@ impl OpenDotaClient {
     pub async fn fetch_player_match_ids(
         &self,
         player_id: &PlayerId,
-    ) -> reqwest::Result<Vec<MatchId>> {
-        println!("Fetching player matches: {}", player_id);
+    ) -> Result<Vec<MatchId>, BoxError> {
+        info!("Fetching player matches: {}", player_id);
         let response = self
             .get_req_at60rpm(
                 &format!("https://api.opendota.com/api/players/{}/matches", player_id).to_string(),
@@ -73,24 +96,39 @@ impl OpenDotaClient {
             .await?;
         Ok(response
             .as_array()
-            .unwrap()
+            .ok_or(serde_error::custom(
+                "unable to parse players match ids respone",
+            ))?
             .iter()
-            .map(|v| v.as_object().unwrap()["match_id"].as_u64().unwrap())
-            .collect())
+            .map(|v| {
+                v.as_object().ok_or(serde_error::custom(
+                    "players match id response is not object",
+                ))?["match_id"]
+                    .as_u64()
+                    .ok_or(serde_error::custom(
+                        "players match id response doesn't contain match_id",
+                    ))
+            })
+            .collect::<Result<Vec<MatchId>, serde_json::Error>>()?)
     }
 
     /// Get single match data containing parsed match information.
     /// Uses https://api.opendota.com/api/matches/{match_id} endpoint.
-    pub async fn fetch_match_info(&self, match_id: &MatchId) -> reqwest::Result<serde_json::Value> {
-        println!("Fetching match info: {}", match_id);
+    pub async fn fetch_match_info(
+        &self,
+        match_id: &MatchId,
+    ) -> Result<serde_json::Value, BoxError> {
+        info!("Fetching match info: {}", match_id);
         let mut response = self
             .get_req_at60rpm(
                 &format!("https://api.opendota.com/api/matches/{}", match_id).to_string(),
             )
             .await?;
         if response["match_id"].is_null() {
-            println!("Match_id is missing, assiging: {}", match_id);
-            let obj = response.as_object_mut().unwrap();
+            warn!("Match_id is missing, assiging: {}", match_id);
+            let obj = response.as_object_mut().ok_or(serde_error::custom(
+                "unable to cast match json to mutable object",
+            ))?;
             obj.insert(
                 "match_id".into(),
                 serde_json::Value::Number((*match_id as i64).into()),

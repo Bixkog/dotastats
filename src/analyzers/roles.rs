@@ -36,7 +36,13 @@ fn get_role_subsets(team_setup: Vec<(PlayerName, Hero)>) -> Vec<Roles> {
 
 pub fn get_roles_wr(matches: &Vec<Match>) -> RolesWr {
     let heroes_info_filename = CONFIG.get_str("heroes_info_filename").unwrap().to_string();
-    let heroes_info = HeroesInfo::init(heroes_info_filename);
+    let heroes_info = match HeroesInfo::init(heroes_info_filename) {
+        Ok(val) => val,
+        Err(e) => {
+            warn!("Can't load heroes_info from heroes.json: {}", e);
+            return vec![];
+        }
+    };
     let mut roles_score: HashMap<Roles, WinRatio> = HashMap::new();
     for match_ in matches {
         let team = skip_fail!(match_.get_team());
@@ -125,7 +131,10 @@ impl RolesRecords {
             )
             .into_iter()
             .map(|(role, players_wr)| {
-                let (player, wr) = players_wr.into_iter().max_by_key(|p| p.1).unwrap();
+                let (player, wr) = match players_wr.into_iter().max_by_key(|p| p.1) {
+                    Some((player_max, wr_max)) => (player_max.clone(), wr_max.clone()),
+                    None => Default::default(),
+                };
                 (role.clone(), player.clone(), wr.clone())
             })
             .collect()

@@ -42,7 +42,7 @@ fn extract_match_data_from_doc(match_bson: &mut Bson) -> Option<serde_json::Valu
     match serde_json::from_str(match_json["info"].as_str()?) {
         Ok(json) => Some(json),
         Err(e) => {
-            println!("Can't parse match data: {}", e);
+            warn!("Can't parse match data: {}", e);
             None
         }
     }
@@ -85,7 +85,7 @@ impl Storage {
             .filter_map(|match_json| match MatchData::from_json(match_json) {
                 Ok(res) => Some(res),
                 Err(e) => {
-                    println!(
+                    error!(
                         "Unable to prepare match json to save to the database: {}",
                         e
                     );
@@ -108,7 +108,7 @@ impl Storage {
             .filter_map(|gdb| match bson::to_document(&gdb) {
                 Ok(res) => Some(res),
                 Err(e) => {
-                    println!("Unable to convert GuildDataBatch to bson::Document: {}", e);
+                    info!("Unable to convert GuildDataBatch to bson::Document: {}", e);
                     None
                 }
             })

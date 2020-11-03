@@ -2,7 +2,9 @@ use crate::data_retrieval::data_retriever::GuildRawData;
 use crate::match_stats::{Match, MatchStats, PlayerStats};
 
 use serde::de::Error;
+use serde_json::error::Error as serde_error;
 use serde_json::Result;
+
 use std::collections::HashMap;
 
 type MemberName = String;
@@ -12,18 +14,16 @@ fn extract_match_stats(
     member_names: &Vec<MemberName>,
     match_json: serde_json::Value,
 ) -> Result<Match> {
-    if match_json["players"].is_null() {
-        return Err(serde_json::Error::custom("No players data."));
-    }
-    let match_players: Vec<serde_json::Value> =
-        match_json["players"].as_array().unwrap().clone().to_vec();
+    let match_players: &Vec<serde_json::Value> = match_json["players"]
+        .as_array()
+        .ok_or(serde_error::custom("No players data."))?;
     let mut players_stats = vec![];
     for player in match_players {
-        if player["personaname"].is_null() {
+        if player["personaname"].is_null() || !player["personaname"].is_string() {
             continue;
         };
         if member_names.contains(&player["personaname"].as_str().unwrap().to_string()) {
-            let player_stats: PlayerStats = serde_json::from_value(player)?;
+            let player_stats: PlayerStats = serde_json::from_value(player.clone())?;
             players_stats.push(player_stats);
         }
     }
@@ -56,13 +56,13 @@ pub fn extract_stats(guild_raw_data: GuildRawData) -> Result<Vec<Match>> {
             }
             Err(_) => continue,
         };
-        parsed_team_size[match_stats.get_team_size().unwrap() - 1] += 1;
+        parsed_team_size[match_stats.get_team_size() - 1] += 1;
         matches_stats.push(match_stats);
     }
-    println!("Parsed team sizes: {:?}", parsed_team_size);
-    println!("Parsed {} out of {} matches", parsed, total);
+    info!("Parsed team sizes: {:?}", parsed_team_size);
+    info!("Parsed {} out of {} matches", parsed, total);
     let parsing_stats = compute_parsing_stats(&matches_stats);
-    println!("{:#?}", parsing_stats);
+    info!("{:#?}", parsing_stats);
     Ok(matches_stats)
 }
 
