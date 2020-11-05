@@ -1,8 +1,14 @@
-use crate::server::data_processing::{self, DPQ};
 use crate::server::data_updater;
 use crate::server::health_routes::{health, start, stop};
-use crate::storage::{result_storage::AnalysisTag, Storage};
+use crate::storage::{
+    result_storage::{AnalysisTag, GuildResultsState, ResultsState},
+    Storage,
+};
 use crate::BoxError;
+use crate::{
+    server::data_processing::{self, DPQ},
+    storage::result_storage,
+};
 use rocket;
 use rocket::response::content;
 use rocket::State;
@@ -97,12 +103,24 @@ async fn process_guild<'a>(
     data_processing_queue: State<'a, DPQ>,
     storage: State<'a, Storage>,
 ) -> () {
-    match storage.is_guild_stats_ready(&guild_id).await {
-        Ok(true) => return (),
-        Ok(false) => (),
+    match storage.get_guild_results_state(&guild_id).await {
+        Ok(GuildResultsState {
+            guild_id: storage_guild_id,
+            state,
+        }) => {
+            if guild_id != storage_guild_id {
+                error!("Unable to receive correct guild results state from storage.");
+                return ();
+            }
+            match state {
+                ResultsState::NotComputed => {}
+                ResultsState::ResultMissing => {}
+                ResultsState::AllComputed { timestamp: _ } => return (),
+            }
+        }
         Err(e) => {
             warn!(
-                "Error during checking if guild is processed: {}. Recomputing.",
+                "Couldn't find results timestamp: {}. Recomputing results.",
                 e
             );
             ()
