@@ -54,8 +54,7 @@ impl Storage {
         &self,
         guild_id: &GuildId,
     ) -> mongodb::error::Result<Vec<serde_json::Value>> {
-        let db = self.db_client.database("dotastats");
-        let coll = db.collection("guild_data");
+        let coll = self.db_client.collection("guild_data");
         let filter = doc! {"guild_id": guild_id};
         let mut cursor = coll.find(filter, None).await?;
         let mut res = vec![];
@@ -113,8 +112,7 @@ impl Storage {
                 }
             })
             .collect();
-        let db = self.db_client.database("dotastats");
-        let coll = db.collection("guild_data");
+        let coll = self.db_client.collection("guild_data");
         coll.insert_many(guild_data_batches, None).await?;
         Ok(())
     }

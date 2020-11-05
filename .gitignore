@@ -6,3 +6,4 @@ heroes.json
 *.png
 /*_res
 *.log
+mongodb_user.json

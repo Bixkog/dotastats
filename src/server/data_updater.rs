@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::server::data_processing;
 use crate::storage::{result_storage::ResultsState, Storage};
 use crate::types::GuildId;
@@ -12,7 +14,7 @@ async fn update_results(guild_id: GuildId, data_processing_queue: data_processin
 }
 
 async fn check_if_update(
-    storage: &Storage,
+    storage: Arc<Storage>,
     data_processing_queue: data_processing::DPQ,
 ) -> Result<(), BoxError> {
     let update_days = CONFIG.get_int("update_every_n_days").unwrap() as i64;
@@ -39,11 +41,11 @@ async fn check_if_update(
 
 pub async fn spawn_worker(
     data_processing_queue: data_processing::DPQ,
+    storage: Arc<Storage>,
 ) -> Result<JoinHandle<()>, BoxError> {
-    let storage = Storage::from_config().await?;
     Ok(tokio::spawn(async move {
         loop {
-            match check_if_update(&storage, data_processing_queue.clone()).await {
+            match check_if_update(storage.clone(), data_processing_queue.clone()).await {
                 Ok(()) => (),
                 Err(e) => {
                     error!("Error ({}) occured during update. Retry in 1 hour.", e);

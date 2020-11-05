@@ -79,17 +79,9 @@ async fn process_guild_data(storage: Arc<Storage>, guild_id: &String) -> Result<
     Ok(())
 }
 
-pub async fn spawn_worker(queue: DPQ) -> JoinHandle<()> {
+pub async fn spawn_worker(queue: DPQ, storage: Arc<Storage>) -> JoinHandle<()> {
     tokio::spawn(async move {
         loop {
-            let storage = match Storage::from_config().await {
-                Ok(s) => s,
-                Err(e) => {
-                    error!("Unable to connect to database: {}", e);
-                    break;
-                }
-            };
-            let storage = Arc::new(storage);
             while queue.read().await.len() > 0 {
                 let guild_id = match queue.read().await.front() {
                     Some(val) => val.clone(),

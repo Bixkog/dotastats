@@ -87,8 +87,7 @@ impl Storage {
         &self,
         guild_id: &GuildId,
     ) -> Result<GuildResultsState, BoxError> {
-        let db = self.db_client.database("dotastats");
-        let coll = db.collection("analysis_results");
+        let coll = self.db_client.collection("analysis_results");
         let options = FindOptions::builder()
             .projection(doc! {"tag": 1, "timestamp": 1})
             .build();
@@ -104,8 +103,7 @@ impl Storage {
     }
 
     pub async fn get_guilds_results_state(&self) -> Result<Vec<GuildResultsState>, BoxError> {
-        let db = self.db_client.database("dotastats");
-        let coll = db.collection("analysis_results");
+        let coll = self.db_client.collection("analysis_results");
         let options = FindOptions::builder()
             .projection(doc! {"guild_id": 1, "tag": 1, "timestamp": 1})
             .build();
@@ -135,8 +133,7 @@ impl Storage {
     }
 
     pub async fn get_processed_guilds(&self) -> Result<Vec<GuildId>, BoxError> {
-        let db = self.db_client.database("dotastats");
-        let coll = db.collection("analysis_results");
+        let coll = self.db_client.collection("analysis_results");
         let options = FindOptions::builder()
             .projection(doc! {"guild_id": 1})
             .build();
@@ -162,8 +159,7 @@ impl Storage {
             payload: payload.to_string(),
         };
         let result_doc = bson::to_document(&res)?;
-        let db = self.db_client.database("dotastats");
-        let coll = db.collection("analysis_results");
+        let coll = self.db_client.collection("analysis_results");
         let filter = doc! {"guild_id": guild_id, "tag": analysis_tag.to_string()};
         coll.delete_one(filter, None).await?;
         coll.insert_one(result_doc, None).await?;
@@ -175,8 +171,7 @@ impl Storage {
         guild_id: &GuildId,
         analysis_tag: AnalysisTag,
     ) -> Result<String, BoxError> {
-        let db = self.db_client.database("dotastats");
-        let coll = db.collection("analysis_results");
+        let coll = self.db_client.collection("analysis_results");
         let filter = doc! {"guild_id": guild_id, "tag": analysis_tag.to_string()};
         let result_doc = coll
             .find_one(filter, None)

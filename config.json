@@ -4,5 +4,6 @@
     "heroes_info_filename": "heroes.json",
     "mongodb_host": "127.0.0.1",
     "mongodb_port": 27017,
+    "mongodb_user_file": "mongodb_user.json",
     "db_guild_data_chunk_size": 100
 }

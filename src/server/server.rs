@@ -1,3 +1,4 @@
+use crate::server::data_processing::{self, DPQ};
 use crate::server::data_updater;
 use crate::server::health_routes::{health, start, stop};
 use crate::storage::{
@@ -5,10 +6,6 @@ use crate::storage::{
     Storage,
 };
 use crate::BoxError;
-use crate::{
-    server::data_processing::{self, DPQ},
-    storage::result_storage,
-};
 use rocket;
 use rocket::response::content;
 use rocket::State;
@@ -18,7 +15,7 @@ use tokio::sync::RwLock;
 #[get("/guild/roles_wr/<guild_id>")]
 async fn roles_wr_req<'a>(
     guild_id: String,
-    storage: State<'a, Storage>,
+    storage: State<'a, Arc<Storage>>,
 ) -> Option<content::Json<String>> {
     match storage.get_result(&guild_id, AnalysisTag::RolesWr).await {
         Ok(payload) => Some(content::Json(payload)),
@@ -32,7 +29,7 @@ async fn roles_wr_req<'a>(
 #[get("/guild/roles_synergy/<guild_id>")]
 async fn roles_synergy_req<'a>(
     guild_id: String,
-    storage: State<'a, Storage>,
+    storage: State<'a, Arc<Storage>>,
 ) -> Option<content::Json<String>> {
     match storage
         .get_result(&guild_id, AnalysisTag::RolesSynergy)
@@ -49,7 +46,7 @@ async fn roles_synergy_req<'a>(
 #[get("/guild/roles_records/<guild_id>")]
 async fn roles_records_req<'a>(
     guild_id: String,
-    storage: State<'a, Storage>,
+    storage: State<'a, Arc<Storage>>,
 ) -> Option<content::Json<String>> {
     match storage
         .get_result(&guild_id, AnalysisTag::RolesRecords)
@@ -66,7 +63,7 @@ async fn roles_records_req<'a>(
 #[get("/guild/heroes_players_stats/<guild_id>")]
 async fn heroes_players_stats_req<'a>(
     guild_id: String,
-    storage: State<'a, Storage>,
+    storage: State<'a, Arc<Storage>>,
 ) -> Option<content::Json<String>> {
     match storage
         .get_result(&guild_id, AnalysisTag::HeroesPlayersStats)
@@ -86,7 +83,7 @@ async fn heroes_players_stats_req<'a>(
 #[get("/guild/players_wr/<guild_id>")]
 async fn players_wr_req<'a>(
     guild_id: String,
-    storage: State<'a, Storage>,
+    storage: State<'a, Arc<Storage>>,
 ) -> Option<content::Json<String>> {
     match storage.get_result(&guild_id, AnalysisTag::PlayersWr).await {
         Ok(payload) => Some(content::Json(payload)),
@@ -101,7 +98,7 @@ async fn players_wr_req<'a>(
 async fn process_guild<'a>(
     guild_id: String,
     data_processing_queue: State<'a, DPQ>,
-    storage: State<'a, Storage>,
+    storage: State<'a, Arc<Storage>>,
 ) -> () {
     match storage.get_guild_results_state(&guild_id).await {
         Ok(GuildResultsState {
@@ -136,10 +133,11 @@ async fn process_guild<'a>(
 
 pub async fn run() -> Result<(), BoxError> {
     let data_processing_queue: DPQ = Arc::new(RwLock::new(VecDeque::new()));
-    let storage = Storage::from_config().await?;
-    let data_processor = data_processing::spawn_worker(data_processing_queue.clone());
-    let updater = data_updater::spawn_worker(data_processing_queue.clone());
-    updater.await;
+    let storage = Arc::new(Storage::from_config().await?);
+    let data_processor =
+        data_processing::spawn_worker(data_processing_queue.clone(), storage.clone());
+    let updater = data_updater::spawn_worker(data_processing_queue.clone(), storage.clone());
+    updater.await?;
     data_processor.await;
     rocket::ignite()
         .mount(

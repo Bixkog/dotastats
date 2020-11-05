@@ -14,11 +14,13 @@ extern crate lazy_static;
 extern crate rocket;
 #[macro_use]
 extern crate log;
+extern crate scanpw;
 extern crate simplelog;
 
 use config;
 use simplelog::*;
 use std::fs::File;
+use storage::Storage;
 
 pub type BoxError = Box<dyn std::error::Error + std::marker::Send + std::marker::Sync>;
 
