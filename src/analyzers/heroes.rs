@@ -1,4 +1,5 @@
-use super::analyzers_utils::*;
+use crate::analyzers::analyzers_utils::*;
+use crate::analyzers::WinRatio;
 use crate::heroes_info::HeroesInfo;
 use crate::match_stats::Match;
 use crate::match_stats::PlayerName;
@@ -12,6 +13,7 @@ use ordered_float::OrderedFloat;
 pub type HeroName = String;
 pub type PlayerHeroScores = Vec<(Vec<(PlayerName, HeroName)>, WinRatio)>;
 
+/// Extracts winratio stats for each Player-Hero team setup from match info.
 pub fn get_heroes_played(data: &Vec<Match>) -> PlayerHeroScores {
     let heroes_info_filename = CONFIG.get_str("heroes_info_filename").unwrap();
     let heroes_info = match HeroesInfo::init(heroes_info_filename) {
@@ -45,12 +47,14 @@ pub fn get_heroes_played(data: &Vec<Match>) -> PlayerHeroScores {
     heroes_played.into_iter().collect()
 }
 
+/// Struct containing hero based stats.
 #[derive(Serialize)]
 pub struct HeroPlayersStats {
     heroes_stats: Vec<HeroStats>,
     players_stats: Vec<(PlayerName, HeroName, WinRatio)>,
 }
 
+/// Records for certan hero.
 #[derive(Serialize)]
 pub struct HeroStats {
     hero_name: HeroName,
@@ -59,66 +63,65 @@ pub struct HeroStats {
     common_player_relative: (PlayerName, WinRatio, f64),
 }
 
-impl HeroStats {
-    fn aggregate_hero_stats(
-        hero_name: String,
-        players_hero_wr: Vec<(PlayerName, WinRatio)>,
-        player_wr: &HashMap<PlayerName, WinRatio>,
-        player_total_games: &HashMap<PlayerName, u32>,
-    ) -> HeroStats {
-        let top_player: (PlayerName, WinRatio, f64) = {
-            let (player_name, wr) = match players_hero_wr
-                .iter()
-                .filter(|(_, wr)| wr.total() > 5)
-                .max_by_key(|(player_name, wr)| {
-                    OrderedFloat(wr.as_percent() / player_wr[player_name].as_percent())
-                }) {
-                Some(x) => x.clone(),
-                None => (String::new(), WinRatio::default()),
-            };
-            if player_name.is_empty() {
-                (String::new(), WinRatio::default(), 0.)
-            } else {
-                let hero_relative_winratio = wr.as_percent() / player_wr[&player_name].as_percent();
-                let hero_relative_winratio = (hero_relative_winratio * 1000.).round() / 1000.;
-                (player_name, wr, hero_relative_winratio)
-            }
-        };
-        let common_player_raw: (PlayerName, WinRatio) = match players_hero_wr
+/// Constructs HeroStats using players winratio on this hero and certain maps: Player -> WinRatio(total).
+fn aggregate_hero_stats(
+    hero_name: String,
+    players_hero_wr: Vec<(PlayerName, WinRatio)>,
+    player_wr: &HashMap<PlayerName, WinRatio>,
+) -> HeroStats {
+    let top_player: (PlayerName, WinRatio, f64) = {
+        let (player_name, wr) = match players_hero_wr
             .iter()
-            .filter(|(_, wr)| wr.total() > 0)
-            .max_by_key(|(_, wr)| wr.total())
-        {
+            .filter(|(_, wr)| wr.total() > 5)
+            .max_by_key(|(player_name, wr)| {
+                OrderedFloat(wr.as_percent() / player_wr[player_name].as_percent())
+            }) {
             Some(x) => x.clone(),
             None => (String::new(), WinRatio::default()),
         };
-        let common_player_relative = {
-            let (player_name, wr) = match players_hero_wr
-                .iter()
-                .filter(|(_, wr)| wr.total() > 0)
-                .max_by_key(|(player_name, wr)| {
-                    OrderedFloat(wr.total() as f64 / player_total_games[player_name] as f64)
-                }) {
-                Some(x) => x.clone(),
-                None => (String::new(), WinRatio::default()),
-            };
-            if player_name.is_empty() {
-                (String::new(), WinRatio::default(), 0.)
-            } else {
-                let hero_play_prcnt = wr.total() as f64 / player_total_games[&player_name] as f64;
-                let hero_play_prcnt = (hero_play_prcnt * 1000.).round() / 1000.;
-                (player_name, wr, hero_play_prcnt)
-            }
-        };
-        HeroStats {
-            hero_name,
-            top_player,
-            common_player_raw,
-            common_player_relative,
+        if player_name.is_empty() {
+            (String::new(), WinRatio::default(), 0.)
+        } else {
+            let hero_relative_winratio = wr.as_percent() / player_wr[&player_name].as_percent();
+            let hero_relative_winratio = (hero_relative_winratio * 1000.).round() / 1000.;
+            (player_name, wr, hero_relative_winratio)
         }
+    };
+    let common_player_raw: (PlayerName, WinRatio) = match players_hero_wr
+        .iter()
+        .filter(|(_, wr)| wr.total() > 0)
+        .max_by_key(|(_, wr)| wr.total())
+    {
+        Some(x) => x.clone(),
+        None => (String::new(), WinRatio::default()),
+    };
+    let common_player_relative = {
+        let (player_name, wr) = match players_hero_wr
+            .iter()
+            .filter(|(_, wr)| wr.total() > 0)
+            .max_by_key(|(player_name, wr)| {
+                OrderedFloat(wr.total() as f64 / player_wr[player_name].total() as f64)
+            }) {
+            Some(x) => x.clone(),
+            None => (String::new(), WinRatio::default()),
+        };
+        if player_name.is_empty() {
+            (String::new(), WinRatio::default(), 0.)
+        } else {
+            let hero_play_prcnt = wr.total() as f64 / player_wr[&player_name].total() as f64;
+            let hero_play_prcnt = (hero_play_prcnt * 1000.).round() / 1000.;
+            (player_name, wr, hero_play_prcnt)
+        }
+    };
+    HeroStats {
+        hero_name,
+        top_player,
+        common_player_raw,
+        common_player_relative,
     }
 }
 
+/// Constructs map Hero -> PlayersWinratio.
 fn get_hero_players_wr(
     player_hero_scores: &PlayerHeroScores,
 ) -> HashMap<HeroName, Vec<(PlayerName, WinRatio)>> {
@@ -138,20 +141,7 @@ fn get_hero_players_wr(
         )
 }
 
-fn get_player_total_games(player_hero_scores: &PlayerHeroScores) -> HashMap<PlayerName, u32> {
-    player_hero_scores
-        .iter()
-        .filter(|(heroes_played, _)| heroes_played.len() == 1)
-        .fold(
-            HashMap::<PlayerName, u32>::new(),
-            |mut s, (heroes_played, wr)| {
-                let player_name = heroes_played[0].0.clone();
-                *s.entry(player_name).or_default() += wr.total();
-                s
-            },
-        )
-}
-
+/// Constructs map Player -> HeroesWinratio.
 fn get_player_heroes_wr(
     player_hero_scores: &PlayerHeroScores,
 ) -> HashMap<PlayerName, Vec<(HeroName, WinRatio)>> {
@@ -171,6 +161,7 @@ fn get_player_heroes_wr(
         )
 }
 
+/// Contructs Players total winratio map.
 fn get_player_wr(
     player_heroes_wr: &HashMap<PlayerName, Vec<(HeroName, WinRatio)>>,
 ) -> HashMap<PlayerName, WinRatio> {
@@ -187,6 +178,7 @@ fn get_player_wr(
         .collect()
 }
 
+/// For each player finds hero with highest winratio.
 fn get_player_stats(
     player_heroes_wr: &HashMap<PlayerName, Vec<(HeroName, WinRatio)>>,
 ) -> Vec<(PlayerName, HeroName, WinRatio)> {
@@ -206,9 +198,9 @@ fn get_player_stats(
         .collect()
 }
 
+/// Computes whole HeroPlayersStats from Player-Hero setups.
 pub fn get_hero_players_stats(player_hero_scores: &PlayerHeroScores) -> HeroPlayersStats {
     let hero_players_wr = get_hero_players_wr(player_hero_scores);
-    let player_total_games = get_player_total_games(player_hero_scores);
     let player_heroes_wr = get_player_heroes_wr(player_hero_scores);
     let player_wr = get_player_wr(&player_heroes_wr);
     let heroes_stats = hero_players_wr
@@ -217,12 +209,7 @@ pub fn get_hero_players_stats(player_hero_scores: &PlayerHeroScores) -> HeroPlay
             if players_hero_wr.is_empty() {
                 return None;
             };
-            Some(HeroStats::aggregate_hero_stats(
-                hero_name,
-                players_hero_wr,
-                &player_wr,
-                &player_total_games,
-            ))
+            Some(aggregate_hero_stats(hero_name, players_hero_wr, &player_wr))
         })
         .collect();
     let players_stats = get_player_stats(&player_heroes_wr);

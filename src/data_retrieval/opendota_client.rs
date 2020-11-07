@@ -5,16 +5,19 @@ use serde::de::Error;
 use serde_json::error::Error as serde_error;
 use tokio::time::{delay_until, Duration, Instant};
 
+/// Struct which handles all communication with opendota api.
 pub struct OpenDotaClient {}
 
 impl OpenDotaClient {
     pub fn new() -> Self {
         Self {}
     }
+
     /// Sends get requests. Waits 1 second to ensure rpm <= 60.
     async fn get_req_at60rpm(&self, url: &String) -> Result<serde_json::Value, BoxError> {
         let start_inst = Instant::now();
         let response = reqwest::get(url).await?.text().await?;
+        delay_until(start_inst + Duration::from_secs(1)).await;
         let parsed_respone = match serde_json::from_str(&response) {
             Ok(json) => json,
             Err(e) => {
@@ -22,7 +25,6 @@ impl OpenDotaClient {
                 return Err(Box::new(e));
             }
         };
-        delay_until(start_inst + Duration::from_secs(1)).await;
         Ok(parsed_respone)
     }
 
@@ -88,7 +90,7 @@ impl OpenDotaClient {
         &self,
         player_id: &PlayerId,
     ) -> Result<Vec<MatchId>, BoxError> {
-        info!("Fetching player matches: {}", player_id);
+        info!("Fetching match ids of player: {}", player_id);
         let response = self
             .get_req_at60rpm(
                 &format!("https://api.opendota.com/api/players/{}/matches", player_id).to_string(),

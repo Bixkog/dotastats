@@ -12,6 +12,7 @@ use rocket::State;
 use std::{collections::VecDeque, sync::Arc};
 use tokio::sync::RwLock;
 
+/// Get roles winratio results.
 #[get("/guild/roles_wr/<guild_id>")]
 async fn roles_wr_req<'a>(
     guild_id: String,
@@ -26,6 +27,7 @@ async fn roles_wr_req<'a>(
     }
 }
 
+/// Get roles synergy results.
 #[get("/guild/roles_synergy/<guild_id>")]
 async fn roles_synergy_req<'a>(
     guild_id: String,
@@ -43,6 +45,7 @@ async fn roles_synergy_req<'a>(
     }
 }
 
+/// Get roles records results.
 #[get("/guild/roles_records/<guild_id>")]
 async fn roles_records_req<'a>(
     guild_id: String,
@@ -60,6 +63,7 @@ async fn roles_records_req<'a>(
     }
 }
 
+/// Get heroes players stats results.
 #[get("/guild/heroes_players_stats/<guild_id>")]
 async fn heroes_players_stats_req<'a>(
     guild_id: String,
@@ -80,6 +84,7 @@ async fn heroes_players_stats_req<'a>(
     }
 }
 
+/// Get players winratio results.
 #[get("/guild/players_wr/<guild_id>")]
 async fn players_wr_req<'a>(
     guild_id: String,
@@ -94,6 +99,8 @@ async fn players_wr_req<'a>(
     }
 }
 
+/// Request to process guild. First use for specific guild subscribes it to
+/// be processed by the app.
 #[post("/guild/process/<guild_id>")]
 async fn process_guild<'a>(
     guild_id: String,

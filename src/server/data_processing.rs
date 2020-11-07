@@ -15,6 +15,7 @@ use tokio::task::JoinHandle;
 /// data processing queue
 pub type DPQ = Arc<RwLock<VecDeque<String>>>;
 
+/// Computes and stores roles based results.
 async fn process_roles_wr(
     storage: Arc<Storage>,
     guild_id: &String,
@@ -40,6 +41,7 @@ async fn process_roles_wr(
     Ok(())
 }
 
+/// Computes and stores heroes based results.
 async fn process_heroes_data(
     storage: Arc<Storage>,
     guild_id: &String,
@@ -58,6 +60,7 @@ async fn process_heroes_data(
     Ok(())
 }
 
+/// Computes and stores players based results.
 async fn process_players_data(
     storage: Arc<Storage>,
     guild_id: &String,
@@ -71,6 +74,7 @@ async fn process_players_data(
     Ok(())
 }
 
+/// Computes results for specified guild.
 async fn process_guild_data(storage: Arc<Storage>, guild_id: &String) -> Result<(), BoxError> {
     let matches = process_guild_matches_retrieval(storage.clone(), guild_id).await?;
     process_roles_wr(storage.clone(), &guild_id, &matches).await?;
@@ -79,6 +83,7 @@ async fn process_guild_data(storage: Arc<Storage>, guild_id: &String) -> Result<
     Ok(())
 }
 
+/// Spawns worker which runs processing tasks. Tasks are created by the server and updater.
 pub async fn spawn_worker(queue: DPQ, storage: Arc<Storage>) -> JoinHandle<()> {
     tokio::spawn(async move {
         loop {

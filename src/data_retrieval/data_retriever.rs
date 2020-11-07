@@ -7,11 +7,13 @@ use serde_json;
 use std::collections::HashSet;
 use std::sync::Arc;
 
+/// Retrieves guild matches data either from opendota or from storage.
 pub struct DataRetriever {
     storage: Arc<Storage>,
     od_client: OpenDotaClient,
 }
 
+/// Retrieval result.
 pub struct GuildRawData {
     pub guild_id: GuildId,
     pub members: Vec<serde_json::Value>,
@@ -26,7 +28,7 @@ impl DataRetriever {
         }
     }
 
-    /// Downloads missing matches data. In case of crash, data is saved every 100 records.
+    /// Downloads requested matches data. In case of crash, data is saved every 100 records.
     async fn get_match_data(
         &self,
         guild_id: &GuildId,
@@ -37,19 +39,17 @@ impl DataRetriever {
             .expect("Field db_guild_data_chunk_size not set in config.")
             as usize;
         let mut not_cached_info = vec![];
+        let mut chunk = vec![];
         for match_id in match_ids {
             let new_info = self.od_client.fetch_match_info(&match_id).await?;
-            not_cached_info.push(new_info);
-            if not_cached_info.len() >= chunk_size {
-                self.storage
-                    .add_guild_data(guild_id, &not_cached_info)
-                    .await?;
-                not_cached_info.clear();
+            chunk.push(new_info);
+            if chunk.len() >= chunk_size {
+                self.storage.add_guild_data(guild_id, &chunk).await?;
+                not_cached_info.extend(chunk.drain(0..));
             }
         }
-        self.storage
-            .add_guild_data(guild_id, &not_cached_info)
-            .await?;
+        self.storage.add_guild_data(guild_id, &chunk).await?;
+        not_cached_info.extend(chunk.drain(0..));
         Ok(not_cached_info)
     }
 
@@ -75,7 +75,7 @@ impl DataRetriever {
             .collect();
         let not_cached_ids: Vec<MatchId> = matches_of_interest
             .difference(&cached_ids)
-            .map(|id| id.clone())
+            .cloned()
             .collect();
         info!(
             "Cached: {}. Not-cached: {}.",

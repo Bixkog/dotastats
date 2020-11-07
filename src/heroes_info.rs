@@ -6,17 +6,22 @@ use crate::BoxError;
 use serde::de::Error;
 use serde_json::error::Error as serde_error;
 
+/// Hero data relevant for analysis.
 #[derive(Clone, Default)]
 pub struct Hero {
     pub name: String,
     pub roles: Vec<String>,
 }
 
+/// Contains map HeroId -> Hero
 pub struct HeroesInfo {
     heroes: HashMap<u64, Hero>,
 }
 
 impl HeroesInfo {
+    /// Initializes from json file with heroes constants.
+    /// File may be retrieved by
+    /// > wget https://raw.githubusercontent.com/odota/dotaconstants/master/build/heroes.json
     pub fn init(heroes_filename: String) -> Result<Self, BoxError> {
         let raw_heroes: serde_json::Value =
             serde_json::from_str(read_to_string(heroes_filename)?.as_str())?;

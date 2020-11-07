@@ -1,6 +1,5 @@
 use crate::{storage::Storage, types::GuildId, BoxError};
 use chrono::Utc;
-use itertools::Itertools;
 use mongodb::options::FindOptions;
 use mongodb::{
     self,
@@ -15,6 +14,7 @@ use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 use tokio::stream::StreamExt;
 
+/// Tags specifing which analysis result is stored in payload.
 #[derive(Debug, EnumIter)]
 pub enum AnalysisTag {
     RolesWr,
@@ -30,6 +30,7 @@ impl fmt::Display for AnalysisTag {
     }
 }
 
+/// Analysis results stored in database. Payload is json in raw string.
 #[derive(Serialize, Deserialize)]
 struct StoredResult {
     guild_id: String,
@@ -38,6 +39,7 @@ struct StoredResult {
     payload: String,
 }
 
+/// Analysis result in format to be sent to client. Payload is parsed.
 #[derive(Serialize, Deserialize)]
 struct ResultToReturn {
     guild_id: String,
@@ -45,16 +47,19 @@ struct ResultToReturn {
     payload: serde_json::Value,
 }
 
+/// Possible states of analysis results in database.
 pub enum ResultsState {
     NotComputed,
     ResultMissing,
     AllComputed { timestamp: i64 },
 }
+/// Return struct for analysis results state.
 pub struct GuildResultsState {
     pub guild_id: GuildId,
     pub state: ResultsState,
 }
 
+/// Finds state of guild analysis results in database.
 fn extract_results_state(
     guild_id: &GuildId,
     tags_found: &Vec<String>,
@@ -83,6 +88,7 @@ fn extract_results_state(
 }
 
 impl Storage {
+    /// Returns state of calculated analysis results for specified guild.
     pub async fn get_guild_results_state(
         &self,
         guild_id: &GuildId,
@@ -102,6 +108,7 @@ impl Storage {
         extract_results_state(guild_id, &tags_found, &timestamps)
     }
 
+    /// Returns states of analysis results for each guild. Used by updater.
     pub async fn get_guilds_results_state(&self) -> Result<Vec<GuildResultsState>, BoxError> {
         let coll = self.db_client.collection("analysis_results");
         let options = FindOptions::builder()
@@ -132,20 +139,7 @@ impl Storage {
             .collect()
     }
 
-    pub async fn get_processed_guilds(&self) -> Result<Vec<GuildId>, BoxError> {
-        let coll = self.db_client.collection("analysis_results");
-        let options = FindOptions::builder()
-            .projection(doc! {"guild_id": 1})
-            .build();
-        let mut cursor = coll.find(doc! {}, options).await?;
-        let mut guild_ids = vec![];
-        while let Some(result_doc) = cursor.next().await {
-            let result_doc = result_doc?;
-            guild_ids.push(result_doc.get_str("guild_id")?.to_string());
-        }
-        Ok(guild_ids.into_iter().unique().collect())
-    }
-
+    /// Stores single analysis result in the database.
     pub async fn store_result(
         &self,
         guild_id: &GuildId,
@@ -166,6 +160,7 @@ impl Storage {
         Ok(())
     }
 
+    /// Retrieves single analysis result from the database in format fiendly for the client.
     pub async fn get_result(
         &self,
         guild_id: &GuildId,

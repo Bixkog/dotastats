@@ -88,7 +88,7 @@ pub struct MatchStats {
     skill: Option<u64>, // Normal, High, Very High
 }
 
-/// Struct containing all data about some match.
+/// Parsed match data. Used as input to the analysisers.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Match {
     match_stats: MatchStats,
@@ -96,7 +96,6 @@ pub struct Match {
 }
 
 pub type PlayerName = String;
-pub type PlayerLane = (/*personaname:*/ String, /*lane:*/ u64);
 
 #[derive(Debug)]
 pub enum StatsError {
@@ -112,6 +111,7 @@ impl From<NoneError> for StatsError {
 
 pub type StatsResult<T> = std::result::Result<T, StatsError>;
 
+/// As match data may be missing some fields, getters return StatsResult.
 impl Match {
     pub fn new(match_stats: MatchStats, players_stats: Vec<PlayerStats>) -> Match {
         Match {
@@ -139,14 +139,6 @@ impl Match {
             }
         }
         Err(StatsError::NoTargetPlayer())
-    }
-
-    pub fn get_team_laning(&self) -> StatsResult<Vec<PlayerLane>> {
-        let mut team = vec![];
-        for p in self.players_stats.iter() {
-            team.push((p.personaname.clone()?, p.lane?));
-        }
-        Ok(team)
     }
 
     pub fn get_team_size(&self) -> usize {

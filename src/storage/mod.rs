@@ -4,7 +4,7 @@ use crate::BoxError;
 use crate::CONFIG;
 use mongodb::bson::doc;
 use scanpw;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::fs::read_to_string;
 pub struct Storage {
     db_client: mongodb::Database,

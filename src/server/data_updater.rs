@@ -8,11 +8,14 @@ use crate::CONFIG;
 use chrono::Utc;
 use tokio::task::JoinHandle;
 
+/// Pushes task to be processed by data processing worker.
 async fn update_results(guild_id: GuildId, data_processing_queue: data_processing::DPQ) {
     info!("Adding guild {} to update queue.", guild_id);
     data_processing_queue.write().await.push_back(guild_id);
 }
 
+/// Checks whether some already processed guild needs update. If so, it sends task to the
+/// data processing worker. Guild needs update if its results are old or some are missing.
 async fn check_if_update(
     storage: Arc<Storage>,
     data_processing_queue: data_processing::DPQ,
@@ -39,6 +42,7 @@ async fn check_if_update(
     Ok(())
 }
 
+/// Spawns updater which checks if guild results need update periodically.
 pub async fn spawn_worker(
     data_processing_queue: data_processing::DPQ,
     storage: Arc<Storage>,

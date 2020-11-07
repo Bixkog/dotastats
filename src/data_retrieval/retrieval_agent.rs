@@ -11,6 +11,7 @@ lazy_static! {
     static ref RETRIEVAL_MUTEX: Mutex<()> = Mutex::new(());
 }
 
+/// Runs whole retrieval scenario and returns parsed matches for specified guild.
 pub async fn process_guild_matches_retrieval(
     storage: Arc<Storage>,
     guild_id: &String,
@@ -18,6 +19,7 @@ pub async fn process_guild_matches_retrieval(
     let _lock = RETRIEVAL_MUTEX.lock().await;
     let data_retriever = DataRetriever::new(storage);
     let guild_raw_data = data_retriever.get_guild_raw_data(&guild_id).await?;
+    drop(_lock);
     let matches = extract_stats(guild_raw_data)?;
     Ok(matches)
 }

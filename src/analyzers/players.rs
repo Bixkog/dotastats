@@ -1,9 +1,10 @@
-use super::analyzers_utils::*;
+use crate::analyzers::WinRatio;
 use crate::match_stats::Match;
 use crate::match_stats::PlayerName;
 use itertools::Itertools;
 use std::collections::HashMap;
 
+/// Computes winratio for each Player setup.
 pub fn get_players_wr(matches: &Vec<Match>) -> Vec<(Vec<PlayerName>, WinRatio)> {
     let mut players_score: HashMap<Vec<PlayerName>, WinRatio> = HashMap::new();
     for match_ in matches {

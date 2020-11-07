@@ -17,16 +17,14 @@ fn extract_match_stats(
     let match_players: &Vec<serde_json::Value> = match_json["players"]
         .as_array()
         .ok_or(serde_error::custom("No players data."))?;
-    let mut players_stats = vec![];
-    for player in match_players {
-        if player["personaname"].is_null() || !player["personaname"].is_string() {
-            continue;
-        };
-        if member_names.contains(&player["personaname"].as_str().unwrap().to_string()) {
-            let player_stats: PlayerStats = serde_json::from_value(player.clone())?;
-            players_stats.push(player_stats);
-        }
-    }
+    let players_stats = match_players
+        .iter()
+        .filter(|player| player["personaname"].is_string())
+        .filter(|player| {
+            member_names.contains(&player["personaname"].as_str().unwrap().to_string())
+        })
+        .map(|player| serde_json::from_value(player.clone()))
+        .collect::<Result<Vec<PlayerStats>>>()?;
     let match_stats: MatchStats = serde_json::from_value(match_json)?;
     Ok(Match::new(match_stats, players_stats))
 }
@@ -36,7 +34,7 @@ pub fn extract_stats(guild_raw_data: GuildRawData) -> Result<Vec<Match>> {
     let member_names: Vec<MemberName> = guild_raw_data
         .members
         .iter()
-        .filter(|member| !member["profile"]["personaname"].is_null())
+        .filter(|member| member["profile"]["personaname"].is_string())
         .map(|member| {
             member["profile"]["personaname"]
                 .as_str()

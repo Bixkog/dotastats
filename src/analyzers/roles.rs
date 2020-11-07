@@ -1,4 +1,5 @@
-use super::analyzers_utils::*;
+use crate::analyzers::analyzers_utils::*;
+use crate::analyzers::WinRatio;
 use crate::heroes_info::{Hero, HeroesInfo};
 use crate::match_stats::Match;
 use crate::match_stats::PlayerName;
@@ -12,7 +13,7 @@ pub type RolesWr = Vec<(Roles, WinRatio)>;
 pub type RolesSynergyResult = f64;
 
 /// As every hero can have several roles, this function generates subsets of those roles for a team.
-/// e.g. P1: [A, B], P2: [B, C] -> [(P1-A, P2-B), (P1-A, P2-C), (P1-B, P2-B), (P1-B, P2-C)]
+/// e.g. P1: [A, B], P2: [B, C] -> [(P1-A, P2-B), (P1-A, P2-C), (P1-B, P2-B), (P1-B, P2-C)].
 fn get_role_subsets(team_setup: Vec<(PlayerName, Hero)>) -> Vec<Roles> {
     let mut role_subsets = vec![Vec::new()];
     for (player, hero) in team_setup.iter() {
@@ -34,6 +35,7 @@ fn get_role_subsets(team_setup: Vec<(PlayerName, Hero)>) -> Vec<Roles> {
     role_subsets
 }
 
+/// Computes winratio for each Player-Role setup.
 pub fn get_roles_wr(matches: &Vec<Match>) -> RolesWr {
     let heroes_info_filename = CONFIG.get_str("heroes_info_filename").unwrap().to_string();
     let heroes_info = match HeroesInfo::init(heroes_info_filename) {
@@ -59,6 +61,8 @@ pub fn get_roles_wr(matches: &Vec<Match>) -> RolesWr {
     roles_score.into_iter().collect()
 }
 
+/// Computes synergy factor for each Player-Role setup. Synergy is equal to setup winratio
+/// divided by average of each player in the setup (player-role) individual winratio.
 pub fn get_roles_synergies(roles_wr: &RolesWr) -> Vec<(Roles, RolesSynergyResult)> {
     let single_wr = roles_wr.iter().filter(|(r, _)| r.len() == 1).fold(
         HashMap::<(String, String), WinRatio>::new(),
@@ -88,6 +92,12 @@ pub fn get_roles_synergies(roles_wr: &RolesWr) -> Vec<(Roles, RolesSynergyResult
         .collect()
 }
 
+/// Struct containing results for certain records of Player-Role setups.
+/// best_single - player with highest winratio for certain role.
+/// top3_carry_sup - top3 of setups (P1-Carry, P2-Support).
+/// best_fight_crew - top 3 player setup containing roles such as Disabler, Initiator, Nuker,
+///                     Support, Durable.
+/// best_nuking_squad - top 2 Nuker setup.
 #[derive(Serialize)]
 pub struct RolesRecords {
     pub best_single: Vec<(PlayerName, RoleName, WinRatio)>,
@@ -97,6 +107,7 @@ pub struct RolesRecords {
 }
 
 impl RolesRecords {
+    /// Constructs RolesRecords using Player-Role setups winratio.
     pub fn extract_records(roles_wr: &RolesWr) -> Self {
         let relevant_total_games = CONFIG.get_int("min_roles_wr_games").unwrap() as u32;
         let roles_wr = roles_wr
@@ -116,6 +127,7 @@ impl RolesRecords {
         }
     }
 
+    /// Calculates best_single field.
     fn extract_best_single(roles_wr: &RolesWr) -> Vec<(PlayerName, RoleName, WinRatio)> {
         roles_wr
             .iter()
@@ -140,6 +152,7 @@ impl RolesRecords {
             .collect()
     }
 
+    /// Calculates top3_carry_sup field.
     fn extract_top3_carry_sup(roles_wr: &RolesWr) -> [(PlayerName, PlayerName, WinRatio); 3] {
         let mut carry_sup: Vec<(PlayerName, PlayerName, WinRatio)> = roles_wr
             .iter()
@@ -160,6 +173,7 @@ impl RolesRecords {
         res
     }
 
+    /// Calculates best_fight_crew field.
     fn extract_best_fight_crew(
         roles_wr: &RolesWr,
     ) -> (PlayerName, PlayerName, PlayerName, WinRatio) {
@@ -190,6 +204,7 @@ impl RolesRecords {
         }
     }
 
+    /// Calculates best_nuking field.
     fn extract_best_nuking_squad(roles_wr: &RolesWr) -> (PlayerName, PlayerName, WinRatio) {
         let squad = roles_wr
             .iter()
@@ -210,6 +225,7 @@ pub fn get_roles_records(roles_wr: &RolesWr) -> RolesRecords {
     RolesRecords::extract_records(roles_wr)
 }
 
+/// Drops setups with not enough total games. Used after calculating other stats.
 pub fn compress_roles_wr(roles_wr: RolesWr) -> RolesWr {
     let relevant_total_games = CONFIG.get_int("min_roles_wr_games").unwrap() as u32;
     roles_wr

@@ -8,6 +8,7 @@ use mongodb::{
 use serde::{de::Error, Deserialize, Serialize};
 use tokio::stream::StreamExt;
 
+/// Struct containing match information and index, stored in mongodb.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct MatchData {
     match_id: i64,
@@ -31,12 +32,14 @@ impl MatchData {
     }
 }
 
+/// Chunk used to store matches of a guild.
 #[derive(Serialize, Deserialize)]
 struct GuildDataBatch {
     guild_id: String,
     matches: Vec<MatchData>, // max size: 100
 }
 
+/// Extracts match info from bson. Used for parsing the database match data output.
 fn extract_match_data_from_doc(match_bson: &mut Bson) -> Option<serde_json::Value> {
     let match_json: serde_json::Value = match_bson.clone().into();
     match serde_json::from_str(match_json["info"].as_str()?) {
