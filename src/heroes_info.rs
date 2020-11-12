@@ -32,34 +32,34 @@ impl HeroesInfo {
             heroes: HashMap::new(),
         };
         for (id, hero) in heroes_constants {
-            let id_int = id.parse::<u64>()?;
-            assert!(id_int > 0, "hero id is 0.");
+            let hero_id = id.parse::<u64>()?;
+            assert!(hero_id > 0);
             let hero_parsed = Hero {
                 name: hero["localized_name"]
                     .as_str()
                     .ok_or(serde_error::custom(format!(
                         "no field localized_name for hero_id: {}",
-                        id_int
+                        hero_id
                     )))?
                     .to_string(),
                 roles: hero["roles"]
                     .as_array()
                     .ok_or(serde_error::custom(format!(
                         "no field roles for hero_id: {}",
-                        id_int
+                        hero_id
                     )))?
                     .iter()
                     .map(|v| {
                         Ok(v.as_str()
                             .ok_or(serde_error::custom(format!(
                                 "roles is not string for hero_id: {}",
-                                id_int
+                                hero_id
                             )))?
                             .to_string())
                     })
                     .collect::<Result<Vec<String>, serde_json::Error>>()?,
             };
-            heroes_info.heroes.insert(id_int, hero_parsed);
+            heroes_info.heroes.insert(hero_id, hero_parsed);
         }
         Ok(heroes_info)
     }

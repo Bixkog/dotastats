@@ -36,7 +36,7 @@ impl Storage {
                 )
             }
             Err(_) => {
-                warn!("Unable to get credentials. Loging anonymously.");
+                warn!("Unable to get credentials. Login in anonymously.");
                 format!(
                     "mongodb://{}:{}/dotastats?authSource=dotastats",
                     db_host, db_port
