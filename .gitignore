@@ -3,7 +3,6 @@
 *_info
 *_req
 heroes.json
-*.png
 /*_res
 *.log
 mongodb_user.json
