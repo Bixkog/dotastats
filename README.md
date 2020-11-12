@@ -1,6 +1,8 @@
 # Dotastats
 
-Dotastats is a dota 2 guild stats provider. Its powered by Rust, with Rocket for HTTP API and MongoDB database. It is used as a backend for the dota2stats.ml.
+Dotastats is a dota 2 guild stats provider. Its powered by Rust, with Rocket for HTTP API and MongoDB database. It is used as a backend for the [dota2stats.ml](dota2stats.ml).
+
+![dota2stats.ml](https://raw.githubusercontent.com/Bixkog/dotastats/master/dota2stats.png "dota2stats.ml")
 
 ## How to run
 
